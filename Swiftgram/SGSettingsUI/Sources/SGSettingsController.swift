@@ -47,6 +47,7 @@ private enum SGControllerSection: Int32, SGItemListSection {
 }
 
 private enum SGBoolSetting: String {
+    case novaWhisper
     case novaSaveSelfDestruct
     case novaUnlockProtected
     case novaKeepDeleted
@@ -166,6 +167,9 @@ private func SGControllerEntries(presentationData: PresentationData, callListSet
     entries.append(.toggle(id: id.count, section: .nova, settingName: .novaGhostTyping, value: SGSimpleSettings.shared.novaGhostTyping, text: "Не показывать «печатает»", enabled: true))
     entries.append(.toggle(id: id.count, section: .nova, settingName: .novaGhostStories, value: SGSimpleSettings.shared.novaGhostStories, text: "Смотреть истории незаметно", enabled: true))
     entries.append(.notice(id: id.count, section: .nova, text: "Сообщения у вас отмечаются прочитанными, но собеседник этого не видит. Голосовые и кружки тоже не отмечаются прослушанными."))
+    entries.append(.header(id: id.count, section: .nova, text: "NOVAGRAM · ГОЛОСОВЫЕ И ИИ", badge: nil))
+    entries.append(.toggle(id: id.count, section: .nova, settingName: .novaWhisper, value: SGSimpleSettings.shared.novaWhisper, text: "Расшифровка голосовых через сервер Nova", enabled: true))
+    entries.append(.notice(id: id.count, section: .nova, text: "Голосовые и кружки расшифровываются на нашем сервере — точнее встроенной в iPhone. Если сервер недоступен, работает распознавание Apple."))
     entries.append(.header(id: id.count, section: .nova, text: "NOVAGRAM · СООБЩЕНИЯ", badge: nil))
     entries.append(.toggle(id: id.count, section: .nova, settingName: .novaKeepDeleted, value: SGSimpleSettings.shared.novaKeepDeleted, text: "Сохранять удалённые сообщения", enabled: true))
     entries.append(.toggle(id: id.count, section: .nova, settingName: .novaEditHistory, value: SGSimpleSettings.shared.novaEditHistory, text: "Сохранять историю правок", enabled: true))
@@ -524,6 +528,8 @@ public func sgSettingsController(context: AccountContext/*, focusOnItemTag: Int?
             SGSimpleSettings.shared.hideChannelBottomButton = !value
         case .secondsInMessages:
             SGSimpleSettings.shared.secondsInMessages = value
+        case .novaWhisper:
+            SGSimpleSettings.shared.novaWhisper = value
         case .novaSaveSelfDestruct:
             SGSimpleSettings.shared.novaSaveSelfDestruct = value
         case .novaUnlockProtected:

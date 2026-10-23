@@ -1,7 +1,9 @@
 load("@build_bazel_rules_swift//swift:swift.bzl", "swift_library")
 
 sgdeps = [
-    "//Swiftgram/SGLogging:SGLogging"
+    "//Swiftgram/SGLogging:SGLogging",
+    "//Swiftgram/SGSimpleSettings:SGSimpleSettings",
+    "//Swiftgram/NovaAPI:NovaAPI",
 ]
 
 swift_library(

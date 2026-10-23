@@ -7,6 +7,9 @@ public struct SGConfig: Codable {
     public var botUsername: String = "SwiftgramBot"
     public var publicKey: String?
     public var iaps: [String] = []
+    // Novagram server, filled from repository secrets at build time.
+    public var novaApiUrl: String?
+    public var novaApiKey: String?
 }
 
 private func parseSGConfig(_ jsonString: String) -> SGConfig {

@@ -1,5 +1,6 @@
 import SGStrings
 import SGSimpleSettings
+import NovaAPI
 import PeerInfoUI
 import Foundation
 import UIKit
@@ -1578,6 +1579,74 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
             actions.append(showJsonAction)
         } else {
             sgActions.append(showJsonAction)
+        }
+
+        // Novagram: AI helpers on our server (reply for me, chat summary).
+        if NovaAPI.isConfigured {
+            let novaPeerId = message.id.peerId
+            let novaAnchor = message.index
+            let novaCollectLines: (@escaping ([NovaAPI.ChatLine]) -> Void) -> Void = { completion in
+                let _ = (context.account.postbox.transaction { transaction -> [NovaAPI.ChatLine] in
+                    var lines: [NovaAPI.ChatLine] = []
+                    transaction.withAllMessages(peerId: novaPeerId, namespace: Namespaces.Message.Cloud, reversed: true, { item in
+                        if item.index > novaAnchor {
+                            return true
+                        }
+                        let text = item.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if !text.isEmpty {
+                            let from: String
+                            if !item.flags.contains(.Incoming) {
+                                from = "Амир"
+                            } else {
+                                from = item.author?.debugDisplayTitle ?? "Собеседник"
+                            }
+                            lines.append(NovaAPI.ChatLine(from: from, text: text))
+                        }
+                        return lines.count < 60
+                    })
+                    return Array(lines.reversed())
+                }
+                |> deliverOnMainQueue).startStandalone(next: { lines in
+                    completion(lines)
+                })
+            }
+            let novaShowText: (String, String) -> Void = { title, text in
+                let presentationData = context.sharedContext.currentPresentationData.with { $0 }
+                controllerInteraction.presentController(textAlertController(
+                    context: context,
+                    title: title,
+                    text: text,
+                    actions: [
+                        TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {})
+                    ]
+                ), nil)
+            }
+            actions.append(.action(ContextMenuActionItem(text: "✨ Ответить с ИИ", icon: { theme in
+                return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Reply"), color: theme.actionSheet.primaryTextColor)
+            }, action: { _, f in
+                f(.default)
+                novaCollectLines({ lines in
+                    let _ = NovaAPI.ai(mode: "reply", lines: lines, completion: { text in
+                        guard let text = text, !text.isEmpty else {
+                            novaShowText("ИИ", "Сервер Nova не ответил. Попробуйте ещё раз.")
+                            return
+                        }
+                        interfaceInteraction.updateTextInputStateAndMode { _, inputMode in
+                            return (ChatTextInputState(inputText: NSAttributedString(string: text)), inputMode)
+                        }
+                    })
+                })
+            })))
+            actions.append(.action(ContextMenuActionItem(text: "✨ Сводка чата", icon: { theme in
+                return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Info"), color: theme.actionSheet.primaryTextColor)
+            }, action: { _, f in
+                f(.default)
+                novaCollectLines({ lines in
+                    let _ = NovaAPI.ai(mode: "summary", lines: lines, completion: { text in
+                        novaShowText("Сводка чата", text ?? "Сервер Nova не ответил. Попробуйте ещё раз.")
+                    })
+                })
+            })))
         }
 
         // Novagram: previous versions of an edited message.

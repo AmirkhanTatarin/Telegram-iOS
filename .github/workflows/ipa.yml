@@ -32,6 +32,7 @@ jobs:
         env:
           TG_API_ID: ${{ secrets.TG_API_ID }}
           TG_API_HASH: ${{ secrets.TG_API_HASH }}
+          NOVA_API_KEY: ${{ secrets.NOVA_API_KEY }}
         run: |
           set -x
           cd /Users/Shared/telegram-ios
@@ -39,7 +40,14 @@ jobs:
           python3 - <<'CFG'
           import json, os
           c = json.load(open("build-system/appstore-configuration.json"))
-          c["sg_config"] = "{}"
+          c["sg_config"] = json.dumps({
+              "api_url": "https://api.swiftgram.app",
+              "webapp_url": "https://my.swiftgram.app",
+              "bot_username": "SwiftgramBot",
+              "iaps": [],
+              "nova_api_url": "https://novastream.club/novagram/",
+              "nova_api_key": os.environ.get("NOVA_API_KEY", ""),
+          })
           if os.environ.get("TG_API_ID"):
               c["api_id"] = os.environ["TG_API_ID"]
               c["api_hash"] = os.environ["TG_API_HASH"]

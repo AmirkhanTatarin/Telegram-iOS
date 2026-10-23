@@ -160,6 +160,7 @@ public class SGSimpleSettings {
         case novaEditHistory
         case novaSaveSelfDestruct
         case novaUnlockProtected
+        case novaWhisper
         case hideChannelBottomButton
         case forceSystemSharing
         case confirmCalls
@@ -326,6 +327,7 @@ public class SGSimpleSettings {
         Keys.novaEditHistory.rawValue: true,
         Keys.novaSaveSelfDestruct.rawValue: true,
         Keys.novaUnlockProtected.rawValue: true,
+        Keys.novaWhisper.rawValue: true,
         Keys.forceSystemSharing.rawValue: false,
         Keys.confirmCalls.rawValue: true,
         Keys.videoPIPSwipeDirection.rawValue: VideoPIPSwipeDirection.up.rawValue,
@@ -567,6 +569,9 @@ public class SGSimpleSettings {
 
     @UserDefault(key: Keys.novaUnlockProtected.rawValue)
     public var novaUnlockProtected: Bool
+
+    @UserDefault(key: Keys.novaWhisper.rawValue)
+    public var novaWhisper: Bool
     
     @UserDefault(key: Keys.hideChannelBottomButton.rawValue)
     public var hideChannelBottomButton: Bool

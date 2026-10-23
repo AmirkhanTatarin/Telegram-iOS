@@ -10,6 +10,7 @@ sgdeps = [
     "//Swiftgram/SGConfig:SGConfig",
     "//Swiftgram/SGAPIWebSettings:SGAPIWebSettings",
     "//Swiftgram/SGAppGroupIdentifier:SGAppGroupIdentifier",
+    "//Swiftgram/NovaAPI:NovaAPI",
     "//Swiftgram/SGSimpleSettings:SGSimpleSettings",
     "//Swiftgram/SFSafariViewControllerPlus:SFSafariViewControllerPlus",
     "//Swiftgram/SGLogging:SGLogging",

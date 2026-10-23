@@ -1,4 +1,6 @@
 import SGLogging
+import SGSimpleSettings
+import NovaAPI
 import Foundation
 import SwiftSignalKit
 import Speech
@@ -116,6 +118,33 @@ public struct LocallyTranscribedAudio {
 }
 
 public func transcribeAudio(path: String, appLocale: String) -> Signal<LocallyTranscribedAudio?, NoError> {
+    // Novagram: Whisper-class transcription on our server, Apple speech recognition as a fallback.
+    guard SGSimpleSettings.shared.novaWhisper && NovaAPI.isConfigured else {
+        return appleTranscribeAudio(path: path, appLocale: appLocale)
+    }
+    let serverSignal = Signal<LocallyTranscribedAudio?, NoError> { subscriber in
+        let task = NovaAPI.transcribe(path: path, completion: { text in
+            if let text = text {
+                subscriber.putNext(LocallyTranscribedAudio(text: text.isEmpty ? "..." : text, isFinal: true))
+            } else {
+                subscriber.putNext(nil)
+            }
+            subscriber.putCompletion()
+        })
+        return ActionDisposable {
+            task?.cancel()
+        }
+    }
+    return serverSignal
+    |> mapToSignal { result -> Signal<LocallyTranscribedAudio?, NoError> in
+        if let result = result {
+            return .single(result)
+        }
+        return appleTranscribeAudio(path: path, appLocale: appLocale)
+    }
+}
+
+private func appleTranscribeAudio(path: String, appLocale: String) -> Signal<LocallyTranscribedAudio?, NoError> {
     var signals: [Signal<TranscriptionResult?, NoError>] = []
     let locales: [String] = [appLocale]
     // Device can effectivelly transcribe only one language at a time. So it will be wise to run language recognition once for each popular language, check the confidence, start over with most confident language and output something it has already generated
