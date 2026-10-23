@@ -1,3 +1,4 @@
+import SGAppGroupIdentifier
 import Foundation
 import SwiftSignalKit
 import ManagedFile
@@ -38,11 +39,11 @@ public class SGLogger {
             return sharedLogger
         } else {
             print("SGLogger setup...")
-            guard let baseAppBundleId = Bundle.main.bundleIdentifier else {
+            guard Bundle.main.bundleIdentifier != nil else {
                 print("Can't setup logger (1)!")
                 return SGLogger(rootPath: "", basePath: "")
             }
-            let appGroupName = "group.\(baseAppBundleId)"
+            let appGroupName = sgAppGroupIdentifier()
             let maybeAppGroupUrl = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupName)
             guard let appGroupUrl = maybeAppGroupUrl else {
                 print("Can't setup logger (2)!")

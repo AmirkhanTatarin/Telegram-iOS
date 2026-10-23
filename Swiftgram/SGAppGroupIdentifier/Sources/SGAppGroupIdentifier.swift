@@ -21,7 +21,14 @@ public func sgBaseBundleIdentifier() -> String {
 }
 
 public func sgAppGroupIdentifier() -> String {
-    let result: String = "group.\(sgBaseBundleIdentifier())"
+    // Nova: a re-signed build can only use the app group from its provisioning profile,
+    // so Info.plist may override it with NovaAppGroup.
+    let result: String
+    if let override = Bundle.main.object(forInfoDictionaryKey: "NovaAppGroup") as? String, !override.isEmpty {
+        result = override
+    } else {
+        result = "group.\(sgBaseBundleIdentifier())"
+    }
     
     #if DEBUG
     print("APP_GROUP_IDENTIFIER: \(result)")

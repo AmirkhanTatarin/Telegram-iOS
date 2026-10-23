@@ -1,3 +1,4 @@
+import SGAppGroupIdentifier
 import Foundation
 import UniformTypeIdentifiers
 import SGItemListUI
@@ -146,8 +147,7 @@ public func sgDebugController(context: AccountContext) -> ViewController {
             #endif
         case .fileManager:
             #if DEBUG
-            let baseAppBundleId = Bundle.main.bundleIdentifier!
-            let appGroupName = "group.\(baseAppBundleId)"
+            let appGroupName = sgAppGroupIdentifier()
             let maybeAppGroupUrl = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupName)
             if let maybeAppGroupUrl = maybeAppGroupUrl {
                 if let fileManager = FLEXFileBrowserController(path: maybeAppGroupUrl.path) {
