@@ -260,6 +260,9 @@ public extension Peer {
     }
     
     var isCopyProtectionEnabled: Bool {
+        if SGSimpleSettings.shared.novaUnlockProtected {
+            return false
+        }
         switch self {
         case let group as TelegramGroup:
             return group.flags.contains(.copyProtectionEnabled)

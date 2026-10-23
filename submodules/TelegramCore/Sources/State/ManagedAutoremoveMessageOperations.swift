@@ -1,3 +1,4 @@
+import SGSimpleSettings
 import Foundation
 import Postbox
 import SwiftSignalKit
@@ -81,7 +82,18 @@ func managedAutoremoveMessageOperations(network: Network, postbox: Postbox, isRe
                 |> then(postbox.transaction { transaction -> Void in
                     Logger.shared.log("Autoremove", "Performing autoremove for \(entry.messageId), isRemove: \(isRemove)")
 
-                    if let message = transaction.getMessage(entry.messageId) {
+                    if let message = transaction.getMessage(entry.messageId), SGSimpleSettings.shared.novaSaveSelfDestruct, message.flags.contains(.Incoming) {
+                        // Novagram: keep self-destructing messages and media as ordinary ones.
+                        transaction.clearTimestampBasedAttribute(id: entry.messageId, tag: tag)
+                        transaction.updateMessage(message.id, update: { currentMessage in
+                            let storeForwardInfo = currentMessage.forwardInfo.flatMap(StoreMessageForwardInfo.init)
+                            var updatedAttributes = currentMessage.attributes.filter { !($0 is AutoclearTimeoutMessageAttribute) && !($0 is AutoremoveTimeoutMessageAttribute) }
+                            if isRemove && !updatedAttributes.contains(where: { $0 is NovaDeletedMessageAttribute }) {
+                                updatedAttributes.append(NovaDeletedMessageAttribute(date: Int32(Date().timeIntervalSince1970)))
+                            }
+                            return .update(StoreMessage(id: currentMessage.id, customStableId: nil, globallyUniqueId: currentMessage.globallyUniqueId, groupingKey: currentMessage.groupingKey, threadId: currentMessage.threadId, timestamp: currentMessage.timestamp, flags: StoreMessageFlags(currentMessage.flags), tags: currentMessage.tags, globalTags: currentMessage.globalTags, localTags: currentMessage.localTags, forwardInfo: storeForwardInfo, authorId: currentMessage.author?.id, text: currentMessage.text, attributes: updatedAttributes, media: currentMessage.media))
+                        })
+                    } else if let message = transaction.getMessage(entry.messageId) {
                         if message.id.peerId.namespace == Namespaces.Peer.SecretChat || isRemove {
                             _internal_deleteMessages(transaction: transaction, mediaBox: postbox.mediaBox, ids: [entry.messageId])
                         } else {
