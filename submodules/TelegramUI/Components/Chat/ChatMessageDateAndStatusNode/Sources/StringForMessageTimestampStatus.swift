@@ -248,5 +248,10 @@ public func stringForMessageTimestampStatus(
         }
     }
     
+    // Novagram: deleted on the server, kept locally.
+    if message.attributes.contains(where: { $0 is NovaDeletedMessageAttribute }) {
+        dateText = "🗑 \(dateText)"
+    }
+    
     return dateText
 }

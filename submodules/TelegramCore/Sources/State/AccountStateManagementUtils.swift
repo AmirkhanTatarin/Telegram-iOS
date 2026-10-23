@@ -1,3 +1,4 @@
+import SGSimpleSettings
 import Foundation
 import Postbox
 import SwiftSignalKit
@@ -4440,6 +4441,11 @@ func replayFinalState(
                     }
                 }
             case let .DeleteMessagesWithGlobalIds(ids):
+                if SGSimpleSettings.shared.novaKeepDeleted {
+                    // Novagram: keep the message, only mark it as deleted.
+                    let _ = novaMarkMessagesDeleted(transaction: transaction, ids: transaction.messageIdsForGlobalIds(ids))
+                    break
+                }
                 var resourceIds: [MediaResourceId] = []
                 transaction.deleteMessagesWithGlobalIds(ids, forEachMedia: { media in
                     addMessageMediaResourceIdsToRemove(media: media, resourceIds: &resourceIds)
@@ -4449,6 +4455,10 @@ func replayFinalState(
                 }
                 deletedMessageIds.append(contentsOf: ids.map { .global($0) })
             case let .DeleteMessages(ids):
+                if SGSimpleSettings.shared.novaKeepDeleted {
+                    let _ = novaMarkMessagesDeleted(transaction: transaction, ids: ids)
+                    break
+                }
                 _internal_deleteMessages(transaction: transaction, mediaBox: mediaBox, ids: ids, manualAddMessageThreadStatsDifference: { id, add, remove in
                     addMessageThreadStatsDifference(threadKey: id, remove: remove, addedMessagePeer: nil, addedMessageId: nil, isOutgoing: false)
                 })
@@ -4491,6 +4501,16 @@ func replayFinalState(
                     var updatedFlags = message.flags
                     var updatedLocalTags = message.localTags
                     var updatedAttributes = message.attributes
+                    if SGSimpleSettings.shared.novaEditHistory {
+                        // Novagram: remember the text before each edit.
+                        let history = previousMessage.novaEditHistory ?? NovaEditHistoryMessageAttribute(dates: [], texts: [])
+                        updatedAttributes.removeAll(where: { $0 is NovaEditHistoryMessageAttribute })
+                        if previousMessage.text != message.text {
+                            updatedAttributes.append(history.appending(date: previousMessage.editedTime ?? previousMessage.timestamp, text: previousMessage.text))
+                        } else if !history.texts.isEmpty {
+                            updatedAttributes.append(history)
+                        }
+                    }
                     if previousMessage.localTags.contains(.OutgoingLiveLocation) {
                         updatedLocalTags.insert(.OutgoingLiveLocation)
                     }

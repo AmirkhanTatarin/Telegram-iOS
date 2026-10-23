@@ -47,6 +47,8 @@ private enum SGControllerSection: Int32, SGItemListSection {
 }
 
 private enum SGBoolSetting: String {
+    case novaKeepDeleted
+    case novaEditHistory
     case novaGhostRead
     case novaGhostOnline
     case novaGhostTyping
@@ -162,6 +164,10 @@ private func SGControllerEntries(presentationData: PresentationData, callListSet
     entries.append(.toggle(id: id.count, section: .nova, settingName: .novaGhostTyping, value: SGSimpleSettings.shared.novaGhostTyping, text: "Не показывать «печатает»", enabled: true))
     entries.append(.toggle(id: id.count, section: .nova, settingName: .novaGhostStories, value: SGSimpleSettings.shared.novaGhostStories, text: "Смотреть истории незаметно", enabled: true))
     entries.append(.notice(id: id.count, section: .nova, text: "Сообщения у вас отмечаются прочитанными, но собеседник этого не видит. Голосовые и кружки тоже не отмечаются прослушанными."))
+    entries.append(.header(id: id.count, section: .nova, text: "NOVAGRAM · СООБЩЕНИЯ", badge: nil))
+    entries.append(.toggle(id: id.count, section: .nova, settingName: .novaKeepDeleted, value: SGSimpleSettings.shared.novaKeepDeleted, text: "Сохранять удалённые сообщения", enabled: true))
+    entries.append(.toggle(id: id.count, section: .nova, settingName: .novaEditHistory, value: SGSimpleSettings.shared.novaEditHistory, text: "Сохранять историю правок", enabled: true))
+    entries.append(.notice(id: id.count, section: .nova, text: "Удалённые собеседником сообщения остаются в чате с пометкой 🗑. Прошлые версии исправленного сообщения — в меню сообщения, «История правок»."))
     
     
     if SGSimpleSettings.shared.canUseNY {
@@ -514,6 +520,10 @@ public func sgSettingsController(context: AccountContext/*, focusOnItemTag: Int?
             SGSimpleSettings.shared.hideChannelBottomButton = !value
         case .secondsInMessages:
             SGSimpleSettings.shared.secondsInMessages = value
+        case .novaKeepDeleted:
+            SGSimpleSettings.shared.novaKeepDeleted = value
+        case .novaEditHistory:
+            SGSimpleSettings.shared.novaEditHistory = value
         case .novaGhostRead:
             SGSimpleSettings.shared.novaGhostRead = value
         case .novaGhostOnline:

@@ -1579,6 +1579,29 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
         } else {
             sgActions.append(showJsonAction)
         }
+
+        // Novagram: previous versions of an edited message.
+        if let editHistory = message.novaEditHistory, !editHistory.texts.isEmpty {
+            actions.append(.action(ContextMenuActionItem(text: "История правок", icon: { theme in
+                return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Edit"), color: theme.actionSheet.primaryTextColor)
+            }, action: { _, f in
+                f(.default)
+                let presentationData = context.sharedContext.currentPresentationData.with { $0 }
+                var lines: [String] = []
+                for (date, text) in zip(editHistory.dates, editHistory.texts) {
+                    lines.append("\(stringForFullDate(timestamp: date, strings: presentationData.strings, dateTimeFormat: presentationData.dateTimeFormat))\n\(text.isEmpty ? "—" : text)")
+                }
+                lines.append("Сейчас\n\(message.text.isEmpty ? "—" : message.text)")
+                controllerInteraction.presentController(textAlertController(
+                    context: context,
+                    title: "История правок",
+                    text: lines.joined(separator: "\n\n"),
+                    actions: [
+                        TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {})
+                    ]
+                ), nil)
+            })))
+        }
         
         var threadId: Int64?
         var threadMessageCount: Int = 0
