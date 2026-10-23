@@ -29,15 +29,28 @@ jobs:
           cp -R $GITHUB_WORKSPACE /Users/Shared/telegram-ios
 
       - name: Build the App
+        env:
+          TG_API_ID: ${{ secrets.TG_API_ID }}
+          TG_API_HASH: ${{ secrets.TG_API_HASH }}
         run: |
           set -x
           cd /Users/Shared/telegram-ios
           BUILD_NUMBER="$(( $(git rev-list --count HEAD) + $(cat build_number_offset) ))"
+          python3 - <<'CFG'
+          import json, os
+          c = json.load(open("build-system/appstore-configuration.json"))
+          c["sg_config"] = "{}"
+          if os.environ.get("TG_API_ID"):
+              c["api_id"] = os.environ["TG_API_ID"]
+              c["api_hash"] = os.environ["TG_API_HASH"]
+          json.dump(c, open("build-system/nova-configuration.json", "w"), indent=2)
+          print("api_id", c["api_id"])
+          CFG
           python3 build-system/Make/ImportCertificates.py --path build-system/fake-codesigning/certs
           python3 -u build-system/Make/Make.py \
             --bazelUserRoot="/private/var/tmp/_bazel_containerhost" \
             build \
-            --configurationPath="build-system/appstore-configuration.json" \
+            --configurationPath="build-system/nova-configuration.json" \
             --codesigningInformationPath=build-system/fake-codesigning \
             --configuration=release_arm64 \
             --buildNumber="$BUILD_NUMBER"
