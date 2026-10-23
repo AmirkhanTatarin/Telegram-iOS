@@ -175,7 +175,7 @@ private func SGControllerEntries(presentationData: PresentationData, callListSet
     entries.append(.toggle(id: id.count, section: .nova, settingName: .novaEditHistory, value: SGSimpleSettings.shared.novaEditHistory, text: "Сохранять историю правок", enabled: true))
     entries.append(.toggle(id: id.count, section: .nova, settingName: .novaSaveSelfDestruct, value: SGSimpleSettings.shared.novaSaveSelfDestruct, text: "Не удалять исчезающие сообщения и медиа", enabled: true))
     entries.append(.toggle(id: id.count, section: .nova, settingName: .novaUnlockProtected, value: SGSimpleSettings.shared.novaUnlockProtected, text: "Разрешить сохранение из защищённых чатов", enabled: true))
-    entries.append(.notice(id: id.count, section: .nova, text: "Удалённые собеседником сообщения остаются в чате с пометкой 🗑. Прошлые версии исправленного сообщения — в меню сообщения, «История правок». Одноразовые фото и видео после таймера остаются обычными. Из защищённых каналов можно сохранять и копировать, но пересылать их сервер всё равно не даст."))
+    entries.append(.notice(id: id.count, section: .nova, text: "Удалённые собеседником сообщения остаются в чате с пометкой «удалено» рядом со временем. Прошлые версии исправленного сообщения — в меню сообщения, «История правок». Одноразовые фото и видео после таймера остаются обычными. Из защищённых каналов можно сохранять и копировать, но пересылать их сервер всё равно не даст."))
     
     
     if SGSimpleSettings.shared.canUseNY {

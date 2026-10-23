@@ -1621,7 +1621,7 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
                     ]
                 ), nil)
             }
-            actions.append(.action(ContextMenuActionItem(text: "✨ Ответить с ИИ", icon: { theme in
+            actions.append(.action(ContextMenuActionItem(text: "Ответить с ИИ", icon: { theme in
                 return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Reply"), color: theme.actionSheet.primaryTextColor)
             }, action: { _, f in
                 f(.default)
@@ -1637,7 +1637,7 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
                     })
                 })
             })))
-            actions.append(.action(ContextMenuActionItem(text: "✨ Сводка чата", icon: { theme in
+            actions.append(.action(ContextMenuActionItem(text: "Сводка чата", icon: { theme in
                 return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Info"), color: theme.actionSheet.primaryTextColor)
             }, action: { _, f in
                 f(.default)
