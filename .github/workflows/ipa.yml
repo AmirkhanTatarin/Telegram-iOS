@@ -63,7 +63,7 @@ jobs:
             --configuration=release_arm64 \
             --buildNumber="$BUILD_NUMBER"
           mkdir -p $GITHUB_WORKSPACE/out
-          cp bazel-out/applebin_ios-ios_arm*-opt-ST-*/bin/Telegram/Telegram.ipa $GITHUB_WORKSPACE/out/
+          cp bazel-bin/Telegram/*.ipa $GITHUB_WORKSPACE/out/Telegram.ipa
 
       - uses: actions/upload-artifact@v4
         with:
