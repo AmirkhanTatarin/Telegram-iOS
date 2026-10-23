@@ -137,6 +137,7 @@ private enum SGSliderSetting: String {
 private enum SGDisclosureLink: String {
     case contentSettings
     case languageSettings
+    case novagram
 }
 
 private struct PeerNameColorScreenState: Equatable {
@@ -161,21 +162,7 @@ private func SGControllerEntries(presentationData: PresentationData, callListSet
     
     entries.append(.searchInput(id: id.count, section: .search, title: NSAttributedString(string: "🔍"), text: state.searchQuery ?? "", placeholder: strings.Common_Search))
 
-    entries.append(.header(id: id.count, section: .nova, text: "NOVAGRAM · НЕВИДИМКА", badge: nil))
-    entries.append(.toggle(id: id.count, section: .nova, settingName: .novaGhostRead, value: SGSimpleSettings.shared.novaGhostRead, text: "Не отправлять «прочитано»", enabled: true))
-    entries.append(.toggle(id: id.count, section: .nova, settingName: .novaGhostOnline, value: SGSimpleSettings.shared.novaGhostOnline, text: "Не показывать «в сети»", enabled: true))
-    entries.append(.toggle(id: id.count, section: .nova, settingName: .novaGhostTyping, value: SGSimpleSettings.shared.novaGhostTyping, text: "Не показывать «печатает»", enabled: true))
-    entries.append(.toggle(id: id.count, section: .nova, settingName: .novaGhostStories, value: SGSimpleSettings.shared.novaGhostStories, text: "Смотреть истории незаметно", enabled: true))
-    entries.append(.notice(id: id.count, section: .nova, text: "Сообщения у вас отмечаются прочитанными, но собеседник этого не видит. Голосовые и кружки тоже не отмечаются прослушанными."))
-    entries.append(.header(id: id.count, section: .nova, text: "NOVAGRAM · ГОЛОСОВЫЕ И ИИ", badge: nil))
-    entries.append(.toggle(id: id.count, section: .nova, settingName: .novaWhisper, value: SGSimpleSettings.shared.novaWhisper, text: "Расшифровка голосовых через сервер Nova", enabled: true))
-    entries.append(.notice(id: id.count, section: .nova, text: "Голосовые и кружки расшифровываются на нашем сервере — точнее встроенной в iPhone. Если сервер недоступен, работает распознавание Apple."))
-    entries.append(.header(id: id.count, section: .nova, text: "NOVAGRAM · СООБЩЕНИЯ", badge: nil))
-    entries.append(.toggle(id: id.count, section: .nova, settingName: .novaKeepDeleted, value: SGSimpleSettings.shared.novaKeepDeleted, text: "Сохранять удалённые сообщения", enabled: true))
-    entries.append(.toggle(id: id.count, section: .nova, settingName: .novaEditHistory, value: SGSimpleSettings.shared.novaEditHistory, text: "Сохранять историю правок", enabled: true))
-    entries.append(.toggle(id: id.count, section: .nova, settingName: .novaSaveSelfDestruct, value: SGSimpleSettings.shared.novaSaveSelfDestruct, text: "Не удалять исчезающие сообщения и медиа", enabled: true))
-    entries.append(.toggle(id: id.count, section: .nova, settingName: .novaUnlockProtected, value: SGSimpleSettings.shared.novaUnlockProtected, text: "Разрешить сохранение из защищённых чатов", enabled: true))
-    entries.append(.notice(id: id.count, section: .nova, text: "Удалённые собеседником сообщения остаются в чате с пометкой «удалено» рядом со временем. Прошлые версии исправленного сообщения — в меню сообщения, «История правок». Одноразовые фото и видео после таймера остаются обычными. Из защищённых каналов можно сохранять и копировать, но пересылать их сервер всё равно не даст."))
+    entries.append(.disclosure(id: id.count, section: .nova, link: .novagram, text: "Novagram"))
     
     
     if SGSimpleSettings.shared.canUseNY {
@@ -726,6 +713,8 @@ public func sgSettingsController(context: AccountContext/*, focusOnItemTag: Int?
         presentControllerImpl?(actionSheet, ViewControllerPresentationArguments(presentationAnimation: .modalSheet))
     }, openDisclosureLink: { link in
         switch (link) {
+            case .novagram:
+                pushControllerImpl?(novagramSettingsController(context: context))
             case .languageSettings:
                 pushControllerImpl?(context.sharedContext.makeLocalizationListController(context: context))
             case .contentSettings:
@@ -817,4 +806,63 @@ public func sgSettingsController(context: AccountContext/*, focusOnItemTag: Int?
     }
     return controller
 
+}
+
+
+// MARK: Novagram
+// Свой экран вместо трёх групп в общем списке Swiftgram: коротко в строках, пояснения — серыми сносками.
+
+private func novagramEntries() -> [SGControllerEntry] {
+    var entries: [SGControllerEntry] = []
+    let id = SGItemListCounter()
+    let s = SGSimpleSettings.shared
+
+    entries.append(.header(id: id.count, section: .nova, text: "НЕВИДИМКА", badge: nil))
+    entries.append(.toggle(id: id.count, section: .nova, settingName: .novaGhostRead, value: s.novaGhostRead, text: "Не отмечать прочитанным", enabled: true))
+    entries.append(.toggle(id: id.count, section: .nova, settingName: .novaGhostOnline, value: s.novaGhostOnline, text: "Скрывать «в сети»", enabled: true))
+    entries.append(.toggle(id: id.count, section: .nova, settingName: .novaGhostTyping, value: s.novaGhostTyping, text: "Скрывать «печатает»", enabled: true))
+    entries.append(.toggle(id: id.count, section: .nova, settingName: .novaGhostStories, value: s.novaGhostStories, text: "Истории незаметно", enabled: true))
+    entries.append(.notice(id: id.count, section: .nova, text: "Собеседник не видит, что вы прочитали или прослушали сообщение."))
+
+    entries.append(.header(id: id.count, section: .other, text: "СООБЩЕНИЯ", badge: nil))
+    entries.append(.toggle(id: id.count, section: .other, settingName: .novaKeepDeleted, value: s.novaKeepDeleted, text: "Сохранять удалённые", enabled: true))
+    entries.append(.toggle(id: id.count, section: .other, settingName: .novaEditHistory, value: s.novaEditHistory, text: "История правок", enabled: true))
+    entries.append(.toggle(id: id.count, section: .other, settingName: .novaSaveSelfDestruct, value: s.novaSaveSelfDestruct, text: "Не удалять исчезающие", enabled: true))
+    entries.append(.toggle(id: id.count, section: .other, settingName: .novaUnlockProtected, value: s.novaUnlockProtected, text: "Сохранение из защищённых", enabled: true))
+    entries.append(.notice(id: id.count, section: .other, text: "Удалённое остаётся в чате с пометкой «удалено». Прошлые версии — в меню сообщения."))
+
+    entries.append(.header(id: id.count, section: .voiceMessages, text: "ГОЛОСОВЫЕ И ИИ", badge: nil))
+    entries.append(.toggle(id: id.count, section: .voiceMessages, settingName: .novaWhisper, value: s.novaWhisper, text: "Расшифровка через Nova", enabled: true))
+    entries.append(.notice(id: id.count, section: .voiceMessages, text: "Точнее встроенной. Если сервер недоступен — распознавание Apple."))
+    return entries
+}
+
+private func novagramSettingsController(context: AccountContext) -> ViewController {
+    let refresh = ValuePromise(true, ignoreRepeated: false)
+    let arguments = SGItemListArguments<SGBoolSetting, SGSliderSetting, SGOneFromManySetting, SGDisclosureLink, AnyHashable>(
+        context: context,
+        setBoolValue: { setting, value in
+            let s = SGSimpleSettings.shared
+            switch setting {
+            case .novaGhostRead: s.novaGhostRead = value
+            case .novaGhostOnline: s.novaGhostOnline = value
+            case .novaGhostTyping: s.novaGhostTyping = value
+            case .novaGhostStories: s.novaGhostStories = value
+            case .novaKeepDeleted: s.novaKeepDeleted = value
+            case .novaEditHistory: s.novaEditHistory = value
+            case .novaSaveSelfDestruct: s.novaSaveSelfDestruct = value
+            case .novaUnlockProtected: s.novaUnlockProtected = value
+            case .novaWhisper: s.novaWhisper = value
+            default: break
+            }
+            refresh.set(true)
+        }
+    )
+    let signal = combineLatest(refresh.get(), context.sharedContext.presentationData)
+    |> map { _, presentationData -> (ItemListControllerState, (ItemListNodeState, Any)) in
+        let controllerState = ItemListControllerState(presentationData: ItemListPresentationData(presentationData), title: .text("Novagram"), leftNavigationButton: nil, rightNavigationButton: nil, backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back))
+        let listState = ItemListNodeState(presentationData: ItemListPresentationData(presentationData), entries: novagramEntries(), style: .blocks, ensureVisibleItemTag: nil, initialScrollToItem: nil)
+        return (controllerState, (listState, arguments))
+    }
+    return ItemListController(context: context, state: signal)
 }
