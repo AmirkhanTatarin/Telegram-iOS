@@ -152,6 +152,14 @@ public class SGSimpleSettings {
         case forceEmojiTab
         case forceBuiltInMic
         case secondsInMessages
+        case novaGhostRead
+        case novaGhostOnline
+        case novaGhostTyping
+        case novaGhostStories
+        case novaKeepDeleted
+        case novaEditHistory
+        case novaSaveSelfDestruct
+        case novaUnlockProtected
         case hideChannelBottomButton
         case forceSystemSharing
         case confirmCalls
@@ -310,6 +318,14 @@ public class SGSimpleSettings {
         Keys.forceEmojiTab.rawValue: false,
         Keys.hideChannelBottomButton.rawValue: false,
         Keys.secondsInMessages.rawValue: false,
+        Keys.novaGhostRead.rawValue: false,
+        Keys.novaGhostOnline.rawValue: false,
+        Keys.novaGhostTyping.rawValue: false,
+        Keys.novaGhostStories.rawValue: false,
+        Keys.novaKeepDeleted.rawValue: true,
+        Keys.novaEditHistory.rawValue: true,
+        Keys.novaSaveSelfDestruct.rawValue: true,
+        Keys.novaUnlockProtected.rawValue: true,
         Keys.forceSystemSharing.rawValue: false,
         Keys.confirmCalls.rawValue: true,
         Keys.videoPIPSwipeDirection.rawValue: VideoPIPSwipeDirection.up.rawValue,
@@ -527,6 +543,30 @@ public class SGSimpleSettings {
     
     @UserDefault(key: Keys.secondsInMessages.rawValue)
     public var secondsInMessages: Bool
+
+    @UserDefault(key: Keys.novaGhostRead.rawValue)
+    public var novaGhostRead: Bool
+
+    @UserDefault(key: Keys.novaGhostOnline.rawValue)
+    public var novaGhostOnline: Bool
+
+    @UserDefault(key: Keys.novaGhostTyping.rawValue)
+    public var novaGhostTyping: Bool
+
+    @UserDefault(key: Keys.novaGhostStories.rawValue)
+    public var novaGhostStories: Bool
+
+    @UserDefault(key: Keys.novaKeepDeleted.rawValue)
+    public var novaKeepDeleted: Bool
+
+    @UserDefault(key: Keys.novaEditHistory.rawValue)
+    public var novaEditHistory: Bool
+
+    @UserDefault(key: Keys.novaSaveSelfDestruct.rawValue)
+    public var novaSaveSelfDestruct: Bool
+
+    @UserDefault(key: Keys.novaUnlockProtected.rawValue)
+    public var novaUnlockProtected: Bool
     
     @UserDefault(key: Keys.hideChannelBottomButton.rawValue)
     public var hideChannelBottomButton: Bool

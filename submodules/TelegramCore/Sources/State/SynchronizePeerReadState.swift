@@ -1,3 +1,4 @@
+import SGSimpleSettings
 import Foundation
 import Postbox
 import TelegramApi
@@ -227,6 +228,10 @@ private func validatePeerReadState(network: Network, postbox: Postbox, stateMana
 }
 
 private func pushPeerReadState(network: Network, postbox: Postbox, stateManager: AccountStateManager, peerId: PeerId, readState: PeerReadState) -> Signal<PeerReadState, PeerReadStateValidationError> {
+    // Nova ghost mode: keep messages read locally, never tell the server.
+    if SGSimpleSettings.shared.novaGhostRead {
+        return .single(readState)
+    }
     if peerId.namespace == Namespaces.Peer.SecretChat {
         return inputSecretChat(postbox: postbox, peerId: peerId)
         |> mapToSignal { inputPeer -> Signal<PeerReadState, PeerReadStateValidationError> in

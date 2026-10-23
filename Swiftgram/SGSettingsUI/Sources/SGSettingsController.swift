@@ -27,6 +27,7 @@ import UndoUI
 
 private enum SGControllerSection: Int32, SGItemListSection {
     case search
+    case nova
     case trending
     case content
     case tabs
@@ -46,6 +47,10 @@ private enum SGControllerSection: Int32, SGItemListSection {
 }
 
 private enum SGBoolSetting: String {
+    case novaGhostRead
+    case novaGhostOnline
+    case novaGhostTyping
+    case novaGhostStories
     case hidePhoneInSettings
     case showTabNames
     case showContactsTab
@@ -150,6 +155,13 @@ private func SGControllerEntries(presentationData: PresentationData, callListSet
     let id = SGItemListCounter()
     
     entries.append(.searchInput(id: id.count, section: .search, title: NSAttributedString(string: "🔍"), text: state.searchQuery ?? "", placeholder: strings.Common_Search))
+
+    entries.append(.header(id: id.count, section: .nova, text: "NOVAGRAM · НЕВИДИМКА", badge: nil))
+    entries.append(.toggle(id: id.count, section: .nova, settingName: .novaGhostRead, value: SGSimpleSettings.shared.novaGhostRead, text: "Не отправлять «прочитано»", enabled: true))
+    entries.append(.toggle(id: id.count, section: .nova, settingName: .novaGhostOnline, value: SGSimpleSettings.shared.novaGhostOnline, text: "Не показывать «в сети»", enabled: true))
+    entries.append(.toggle(id: id.count, section: .nova, settingName: .novaGhostTyping, value: SGSimpleSettings.shared.novaGhostTyping, text: "Не показывать «печатает»", enabled: true))
+    entries.append(.toggle(id: id.count, section: .nova, settingName: .novaGhostStories, value: SGSimpleSettings.shared.novaGhostStories, text: "Смотреть истории незаметно", enabled: true))
+    entries.append(.notice(id: id.count, section: .nova, text: "Сообщения у вас отмечаются прочитанными, но собеседник этого не видит. Голосовые и кружки тоже не отмечаются прослушанными."))
     
     
     if SGSimpleSettings.shared.canUseNY {
@@ -502,6 +514,14 @@ public func sgSettingsController(context: AccountContext/*, focusOnItemTag: Int?
             SGSimpleSettings.shared.hideChannelBottomButton = !value
         case .secondsInMessages:
             SGSimpleSettings.shared.secondsInMessages = value
+        case .novaGhostRead:
+            SGSimpleSettings.shared.novaGhostRead = value
+        case .novaGhostOnline:
+            SGSimpleSettings.shared.novaGhostOnline = value
+        case .novaGhostTyping:
+            SGSimpleSettings.shared.novaGhostTyping = value
+        case .novaGhostStories:
+            SGSimpleSettings.shared.novaGhostStories = value
         case .confirmCalls:
             SGSimpleSettings.shared.confirmCalls = value
         case .swipeForVideoPIP:

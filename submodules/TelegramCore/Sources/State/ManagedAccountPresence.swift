@@ -1,3 +1,4 @@
+import SGSimpleSettings
 import Foundation
 import TelegramApi
 import Postbox
@@ -42,7 +43,9 @@ private final class AccountPresenceManagerImpl {
         self.onlineTimer?.invalidate()
     }
     
-    private func updatePresence(_ isOnline: Bool) {
+    private func updatePresence(_ isOnlineValue: Bool) {
+        // Nova ghost mode: always report offline.
+        let isOnline = isOnlineValue && !SGSimpleSettings.shared.novaGhostOnline
         let request: Signal<Api.Bool, MTRpcError>
         if isOnline {
             let timer = SignalKitTimer(timeout: 30.0, repeat: false, completion: { [weak self] in
