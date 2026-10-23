@@ -47,7 +47,7 @@ jobs:
               "iaps": [],
               "nova_api_url": "https://novastream.club/novagram/",
               "nova_api_key": os.environ.get("NOVA_API_KEY", ""),
-          })
+          }, separators=(",", ":"))  # без пробелов: строка уходит в флаги компилятора, пробел рвёт её на аргументы
           if os.environ.get("TG_API_ID"):
               c["api_id"] = os.environ["TG_API_ID"]
               c["api_hash"] = os.environ["TG_API_HASH"]
