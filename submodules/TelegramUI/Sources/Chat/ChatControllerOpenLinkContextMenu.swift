@@ -18,6 +18,8 @@ import UrlWhitelist
 import OpenInExternalAppUI
 import SafariServices
 import TelegramPresentationData
+import Photos
+import NovaAPI
 
 private struct ChatLinkOpenMode {
     let shouldOpenInApp: Bool
@@ -415,6 +417,20 @@ extension ChatControllerImpl {
                 }))
             )
 
+            // Novagram: the server downloads the video by link, the app saves it to Photos.
+            if NovaAPI.canDownloadVideo(url: cleanUrl) {
+                items.append(
+                    .action(ContextMenuActionItem(text: "Скачать на айфон", icon: { theme in return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Download"), color: theme.contextMenu.primaryColor) }, action: { [weak self] _, f in
+                        f(.default)
+
+                        guard let self else {
+                            return
+                        }
+                        self.novaDownloadVideo(url: cleanUrl)
+                    }))
+                )
+            }
+
             // MARK: Swiftgram
         items.append(
             .action(ContextMenuActionItem(text: self.presentationData.strings.Conversation_ContextMenuForward, icon: { theme in return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Forward"), color: theme.contextMenu.primaryColor) }, action: { [weak self]  _, f in
@@ -462,5 +478,44 @@ extension ChatControllerImpl {
         }
 
         self.window?.presentInGlobalOverlay(controller)
+    }
+}
+
+extension ChatControllerImpl {
+    func novaDownloadVideo(url: String) {
+        let progressController = UndoOverlayController(presentationData: self.presentationData, content: .info(title: "Скачиваю видео…", text: "Оно появится в Фото", timeout: 300.0, customUndoText: nil), elevatedLayout: false, animateInAsReplacement: false, action: { _ in return false })
+        self.present(progressController, in: .current)
+
+        let finish: (String) -> Void = { [weak self, weak progressController] text in
+            progressController?.dismiss()
+            guard let self else {
+                return
+            }
+            self.present(UndoOverlayController(presentationData: self.presentationData, content: .info(title: nil, text: text, timeout: nil, customUndoText: nil), elevatedLayout: false, animateInAsReplacement: false, action: { _ in return false }), in: .current)
+        }
+
+        let _ = NovaAPI.downloadVideo(url: url, completion: { file in
+            guard let file else {
+                finish("Не получилось скачать видео")
+                return
+            }
+            PHPhotoLibrary.requestAuthorization(for: .addOnly, handler: { status in
+                guard status == .authorized || status == .limited else {
+                    try? FileManager.default.removeItem(at: file)
+                    DispatchQueue.main.async {
+                        finish("Нет доступа к Фото: разрешите в Настройках")
+                    }
+                    return
+                }
+                PHPhotoLibrary.shared().performChanges({
+                    let _ = PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: file)
+                }, completionHandler: { success, _ in
+                    try? FileManager.default.removeItem(at: file)
+                    DispatchQueue.main.async {
+                        finish(success ? "Видео сохранено в Фото" : "Не получилось сохранить видео")
+                    }
+                })
+            })
+        })
     }
 }

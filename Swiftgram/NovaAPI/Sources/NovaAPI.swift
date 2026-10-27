@@ -79,4 +79,41 @@ public enum NovaAPI {
         }
         return request(path: "ai", body: body, contentType: "application/json", timeout: 120.0, completion: completion)
     }
+
+    /// Hosts the server can download a video from (TikTok, YouTube, Instagram, X, VK, Reddit, Pinterest).
+    private static let videoHosts: [String] = ["tiktok.com", "youtube.com", "youtu.be", "instagram.com", "x.com", "twitter.com", "vk.com", "vkvideo.ru", "reddit.com", "pinterest.com", "pin.it", "rutube.ru", "twitch.tv"]
+
+    public static func canDownloadVideo(url: String) -> Bool {
+        guard isConfigured, let host = URL(string: url)?.host?.lowercased() else {
+            return false
+        }
+        return videoHosts.contains(where: { host == $0 || host.hasSuffix("." + $0) })
+    }
+
+    /// The server downloads the video by link (yt-dlp) and returns an mp4; completion gets a temporary file.
+    public static func downloadVideo(url: String, completion: @escaping (URL?) -> Void) -> URLSessionTask? {
+        guard let endpoint = baseURL?.appendingPathComponent("dl"), let body = try? JSONSerialization.data(withJSONObject: ["url": url]) else {
+            completion(nil)
+            return nil
+        }
+        var urlRequest = URLRequest(url: endpoint, timeoutInterval: 300.0)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue(key, forHTTPHeaderField: "X-Nova-Key")
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.httpBody = body
+        let task = URLSession.shared.downloadTask(with: urlRequest, completionHandler: { location, response, _ in
+            var result: URL?
+            if let location = location, let response = response as? HTTPURLResponse, response.statusCode == 200, response.mimeType == "video/mp4" {
+                let target = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("novagram-\(UUID().uuidString).mp4")
+                if (try? FileManager.default.moveItem(at: location, to: target)) != nil {
+                    result = target
+                }
+            }
+            DispatchQueue.main.async {
+                completion(result)
+            }
+        })
+        task.resume()
+        return task
+    }
 }
