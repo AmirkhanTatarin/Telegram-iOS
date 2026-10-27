@@ -7422,10 +7422,12 @@ public final class StoryItemSetContainerComponent: Component {
                             }
                             self.beginPictureInPicture()
                         })))
-                    } else if !component.slice.item.storyItem.isForwardingDisabled {
+                    } else if !component.slice.item.storyItem.isForwardingDisabled || SGSimpleSettings.shared.novaUnlockProtected {
+                        // Novagram: saving other people's stories without Premium, protected ones too.
+                        let novaCanSave = accountUser.isPremium || SGSimpleSettings.shared.novaUnlockProtected
                         let saveText: String = component.strings.Story_Context_SaveToGallery
                         items.append(.action(ContextMenuActionItem(text: saveText, icon: { theme in
-                            return generateTintedImage(image: UIImage(bundleImageName: accountUser.isPremium ? "Chat/Context Menu/Download" : "Chat/Context Menu/DownloadLocked"), color: theme.contextMenu.primaryColor)
+                            return generateTintedImage(image: UIImage(bundleImageName: novaCanSave ? "Chat/Context Menu/Download" : "Chat/Context Menu/DownloadLocked"), color: theme.contextMenu.primaryColor)
                         }, action: { [weak self] _, a in
                             a(.default)
                             
@@ -7433,7 +7435,7 @@ public final class StoryItemSetContainerComponent: Component {
                                 return
                             }
                             
-                            if accountUser.isPremium {
+                            if novaCanSave {
                                 self.requestSave()
                             } else {
                                 self.presentSaveUpgradeScreen()

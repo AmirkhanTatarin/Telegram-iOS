@@ -48,6 +48,7 @@ private enum SGControllerSection: Int32, SGItemListSection {
 
 private enum SGBoolSetting: String {
     case novaWhisper
+    case novaHQVideo
     case novaSaveSelfDestruct
     case novaUnlockProtected
     case novaKeepDeleted
@@ -517,6 +518,8 @@ public func sgSettingsController(context: AccountContext/*, focusOnItemTag: Int?
             SGSimpleSettings.shared.secondsInMessages = value
         case .novaWhisper:
             SGSimpleSettings.shared.novaWhisper = value
+        case .novaHQVideo:
+            SGSimpleSettings.shared.novaHQVideo = value
         case .novaSaveSelfDestruct:
             SGSimpleSettings.shared.novaSaveSelfDestruct = value
         case .novaUnlockProtected:
@@ -831,6 +834,11 @@ private func novagramEntries() -> [SGControllerEntry] {
     entries.append(.toggle(id: id.count, section: .other, settingName: .novaUnlockProtected, value: s.novaUnlockProtected, text: "Сохранение из защищённых", enabled: true))
     entries.append(.notice(id: id.count, section: .other, text: "Удалённое остаётся в чате с пометкой «удалено». Прошлые версии — в меню сообщения."))
 
+    entries.append(.header(id: id.count, section: .photo, text: "МЕДИА", badge: nil))
+    entries.append(.toggle(id: id.count, section: .photo, settingName: .sendLargePhotos, value: s.sendLargePhotos, text: "Фото без сжатия", enabled: true))
+    entries.append(.toggle(id: id.count, section: .photo, settingName: .novaHQVideo, value: s.novaHQVideo, text: "Видео в лучшем качестве", enabled: true))
+    entries.append(.notice(id: id.count, section: .photo, text: "Фото уходят в 2560 px, видео — в максимальном качестве. Другое качество можно выбрать при отправке."))
+
     entries.append(.header(id: id.count, section: .voiceMessages, text: "ГОЛОСОВЫЕ И ИИ", badge: nil))
     entries.append(.toggle(id: id.count, section: .voiceMessages, settingName: .novaWhisper, value: s.novaWhisper, text: "Расшифровка через Nova", enabled: true))
     entries.append(.notice(id: id.count, section: .voiceMessages, text: "Точнее встроенной. Если сервер недоступен — распознавание Apple."))
@@ -853,6 +861,8 @@ private func novagramSettingsController(context: AccountContext) -> ViewControll
             case .novaSaveSelfDestruct: s.novaSaveSelfDestruct = value
             case .novaUnlockProtected: s.novaUnlockProtected = value
             case .novaWhisper: s.novaWhisper = value
+            case .sendLargePhotos: s.sendLargePhotos = value
+            case .novaHQVideo: s.novaHQVideo = value
             default: break
             }
             refresh.set(true)

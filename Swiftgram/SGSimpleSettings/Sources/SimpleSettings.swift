@@ -161,6 +161,7 @@ public class SGSimpleSettings {
         case novaSaveSelfDestruct
         case novaUnlockProtected
         case novaWhisper
+        case novaHQVideo
         case hideChannelBottomButton
         case forceSystemSharing
         case confirmCalls
@@ -271,8 +272,8 @@ public class SGSimpleSettings {
         Keys.bottomTabStyle.rawValue: BottomTabStyleValues.telegram.rawValue,
         Keys.lastAccountFolders.rawValue: [:],
         Keys.localDNSForProxyHost.rawValue: false,
-        Keys.sendLargePhotos.rawValue: false,
-        Keys.outgoingPhotoQuality.rawValue: 70,
+        Keys.sendLargePhotos.rawValue: true,
+        Keys.outgoingPhotoQuality.rawValue: 92,
         Keys.storyStealthMode.rawValue: false,
         Keys.canUseStealthMode.rawValue: true,
         Keys.disableSwipeToRecordStory.rawValue: false,
@@ -328,6 +329,7 @@ public class SGSimpleSettings {
         Keys.novaSaveSelfDestruct.rawValue: true,
         Keys.novaUnlockProtected.rawValue: true,
         Keys.novaWhisper.rawValue: true,
+        Keys.novaHQVideo.rawValue: true,
         Keys.forceSystemSharing.rawValue: false,
         Keys.confirmCalls.rawValue: true,
         Keys.videoPIPSwipeDirection.rawValue: VideoPIPSwipeDirection.up.rawValue,
@@ -572,6 +574,9 @@ public class SGSimpleSettings {
 
     @UserDefault(key: Keys.novaWhisper.rawValue)
     public var novaWhisper: Bool
+
+    @UserDefault(key: Keys.novaHQVideo.rawValue)
+    public var novaHQVideo: Bool
     
     @UserDefault(key: Keys.hideChannelBottomButton.rawValue)
     public var hideChannelBottomButton: Bool

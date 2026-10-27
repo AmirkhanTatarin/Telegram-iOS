@@ -10,6 +10,7 @@ import AccountContext
 import LegacyUI
 import SaveToCameraRoll
 import Photos
+import SGSimpleSettings
 
 public func defaultVideoPresetForContext(_ context: AccountContext) -> TGMediaVideoConversionPreset {
     var networkType: NetworkType = .wifi
@@ -18,6 +19,11 @@ public func defaultVideoPresetForContext(_ context: AccountContext) -> TGMediaVi
         networkType = value
     })
     
+    // Novagram: send video in the best quality unless the user picks another one.
+    if SGSimpleSettings.shared.novaHQVideo {
+        return TGMediaVideoConversionPresetCompressedVeryHigh
+    }
+
     let autodownloadSettings = context.sharedContext.currentAutodownloadSettings.with { $0 }
     let presetSettings: AutodownloadPresetSettings
     switch networkType {
