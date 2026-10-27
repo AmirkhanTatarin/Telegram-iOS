@@ -49,6 +49,7 @@ private enum SGControllerSection: Int32, SGItemListSection {
 private enum SGBoolSetting: String {
     case novaWhisper
     case novaHQVideo
+    case novaAntiSpam
     case novaSaveSelfDestruct
     case novaUnlockProtected
     case novaKeepDeleted
@@ -520,6 +521,8 @@ public func sgSettingsController(context: AccountContext/*, focusOnItemTag: Int?
             SGSimpleSettings.shared.novaWhisper = value
         case .novaHQVideo:
             SGSimpleSettings.shared.novaHQVideo = value
+        case .novaAntiSpam:
+            SGSimpleSettings.shared.novaAntiSpam = value
         case .novaSaveSelfDestruct:
             SGSimpleSettings.shared.novaSaveSelfDestruct = value
         case .novaUnlockProtected:
@@ -834,6 +837,10 @@ private func novagramEntries() -> [SGControllerEntry] {
     entries.append(.toggle(id: id.count, section: .other, settingName: .novaUnlockProtected, value: s.novaUnlockProtected, text: "Сохранение из защищённых", enabled: true))
     entries.append(.notice(id: id.count, section: .other, text: "Удалённое остаётся в чате с пометкой «удалено». Прошлые версии — в меню сообщения."))
 
+    entries.append(.header(id: id.count, section: .chatList, text: "АНТИСПАМ", badge: nil))
+    entries.append(.toggle(id: id.count, section: .chatList, settingName: .novaAntiSpam, value: s.novaAntiSpam, text: "Антиспам", enabled: true))
+    entries.append(.notice(id: id.count, section: .chatList, text: "Первое сообщение от незнакомца проверяет ИИ. Реклама, «заработок» и крипто-схемы уходят в архив, чат не удаляется."))
+
     entries.append(.header(id: id.count, section: .photo, text: "МЕДИА", badge: nil))
     entries.append(.toggle(id: id.count, section: .photo, settingName: .sendLargePhotos, value: s.sendLargePhotos, text: "Фото без сжатия", enabled: true))
     entries.append(.toggle(id: id.count, section: .photo, settingName: .novaHQVideo, value: s.novaHQVideo, text: "Видео в лучшем качестве", enabled: true))
@@ -863,6 +870,7 @@ private func novagramSettingsController(context: AccountContext) -> ViewControll
             case .novaWhisper: s.novaWhisper = value
             case .sendLargePhotos: s.sendLargePhotos = value
             case .novaHQVideo: s.novaHQVideo = value
+            case .novaAntiSpam: s.novaAntiSpam = value
             default: break
             }
             refresh.set(true)

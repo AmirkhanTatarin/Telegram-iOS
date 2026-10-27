@@ -80,6 +80,46 @@ public enum NovaAPI {
         return request(path: "ai", body: body, contentType: "application/json", timeout: 120.0, completion: completion)
     }
 
+    public struct SpamCandidate {
+        public let id: Int64
+        public let from: String
+        public let text: String
+
+        public init(id: Int64, from: String, text: String) {
+            self.id = id
+            self.from = from
+            self.text = text
+        }
+    }
+
+    /// Antispam: the server decides which first messages from strangers are spam.
+    /// completion gets the ids of spam messages, or nil if the server did not answer (then nothing is touched).
+    public static func checkSpam(_ candidates: [SpamCandidate], completion: @escaping ([Int64]?) -> Void) -> URLSessionTask? {
+        let payload: [String: Any] = ["messages": candidates.map { ["id": $0.id, "from": $0.from, "text": $0.text] }]
+        guard let endpoint = baseURL?.appendingPathComponent("spam"), !key.isEmpty, let body = try? JSONSerialization.data(withJSONObject: payload) else {
+            completion(nil)
+            return nil
+        }
+        var urlRequest = URLRequest(url: endpoint, timeoutInterval: 60.0)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue(key, forHTTPHeaderField: "X-Nova-Key")
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.httpBody = body
+        let task = URLSession.shared.dataTask(with: urlRequest, completionHandler: { data, response, _ in
+            var result: [Int64]?
+            if let data = data, (response as? HTTPURLResponse)?.statusCode == 200,
+               let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let ids = object["spam"] as? [Any] {
+                result = ids.compactMap { ($0 as? NSNumber)?.int64Value }
+            }
+            DispatchQueue.main.async {
+                completion(result)
+            }
+        })
+        task.resume()
+        return task
+    }
+
     /// Hosts the server can download a video from (TikTok, YouTube, Instagram, X, VK, Reddit, Pinterest).
     private static let videoHosts: [String] = ["tiktok.com", "youtube.com", "youtu.be", "instagram.com", "x.com", "twitter.com", "vk.com", "vkvideo.ru", "reddit.com", "pinterest.com", "pin.it", "rutube.ru", "twitch.tv"]
 
