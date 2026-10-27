@@ -1671,6 +1671,42 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
                 ), nil)
             })))
         }
+
+        // Novagram: any video as a round video message, any audio as a voice message (the server converts).
+        if NovaAPI.isConfigured, let novaFile = message.media.first(where: { $0 is TelegramMediaFile }) as? TelegramMediaFile, !novaFile.isInstantVideo, !novaFile.isVoice, !novaFile.isSticker, !novaFile.isAnimated, novaFile.isVideo || novaFile.mimeType.hasPrefix("audio/") {
+            let novaToRound = novaFile.isVideo
+            actions.append(.action(ContextMenuActionItem(text: novaToRound ? "Отправить кружком" : "Отправить голосовым", icon: { theme in
+                return generateTintedImage(image: UIImage(bundleImageName: novaToRound ? "Chat/Input/Text/IconVideo" : "Chat/Input/Text/IconMicrophone"), color: theme.actionSheet.primaryTextColor)
+            }, action: { _, f in
+                f(.default)
+                guard let path = context.account.postbox.mediaBox.completedResourcePath(novaFile.resource) else {
+                    controllerInteraction.displayUndo(.info(title: nil, text: "Сначала дождитесь загрузки файла", timeout: nil, customUndoText: nil))
+                    return
+                }
+                controllerInteraction.displayUndo(.info(title: nil, text: novaToRound ? "Делаю кружок…" : "Делаю голосовое…", timeout: nil, customUndoText: nil))
+                let _ = NovaAPI.convert(path: path, to: novaToRound ? "round" : "voice", completion: { url, duration in
+                    guard let url, let data = try? Data(contentsOf: url) else {
+                        controllerInteraction.displayUndo(.info(title: nil, text: "Не получилось переделать файл", timeout: nil, customUndoText: nil))
+                        return
+                    }
+                    try? FileManager.default.removeItem(at: url)
+                    guard let chatController = interfaceInteraction.chatController() as? ChatControllerImpl else {
+                        return
+                    }
+                    let randomId = Int64.random(in: Int64.min ... Int64.max)
+                    let resource = LocalFileMediaResource(fileId: randomId)
+                    context.account.postbox.mediaBox.storeResourceData(resource.id, data: data)
+                    let attributes: [TelegramMediaFileAttribute]
+                    if novaToRound {
+                        attributes = [.Video(duration: duration, size: PixelDimensions(width: 400, height: 400), flags: [.instantRoundVideo], preloadSize: nil, coverTime: nil, videoCodec: nil)]
+                    } else {
+                        attributes = [.Audio(isVoice: true, duration: Int(duration), title: nil, performer: nil, waveform: nil)]
+                    }
+                    let media = TelegramMediaFile(fileId: EngineMedia.Id(namespace: Namespaces.Media.LocalFile, id: randomId), partialReference: nil, resource: resource, previewRepresentations: [], videoThumbnails: [], immediateThumbnailData: nil, mimeType: novaToRound ? "video/mp4" : "audio/ogg", size: Int64(data.count), attributes: attributes, alternativeRepresentations: [])
+                    chatController.sendMessages([.message(text: "", attributes: [], inlineStickers: [:], mediaReference: .standalone(media: media), threadId: chatController.chatLocation.threadId, replyToMessageId: nil, replyToStoryId: nil, localGroupingKey: nil, correlationId: nil, bubbleUpEmojiOrStickersets: [])])
+                })
+            })))
+        }
         
         var threadId: Int64?
         var threadMessageCount: Int = 0

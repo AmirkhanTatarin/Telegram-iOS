@@ -116,4 +116,37 @@ public enum NovaAPI {
         task.resume()
         return task
     }
+
+    /// The server turns a video into a round video message (to: "round", mp4 400×400) or any audio into a voice message (to: "voice", ogg/opus).
+    public static func convert(path: String, to: String, completion: @escaping (URL?, Double) -> Void) -> URLSessionTask? {
+        guard var components = baseURL.flatMap({ URLComponents(url: $0.appendingPathComponent("convert"), resolvingAgainstBaseURL: false) }) else {
+            completion(nil, 0.0)
+            return nil
+        }
+        components.queryItems = [URLQueryItem(name: "to", value: to)]
+        guard let endpoint = components.url else {
+            completion(nil, 0.0)
+            return nil
+        }
+        var urlRequest = URLRequest(url: endpoint, timeoutInterval: 300.0)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue(key, forHTTPHeaderField: "X-Nova-Key")
+        urlRequest.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
+        let task = URLSession.shared.uploadTask(with: urlRequest, fromFile: URL(fileURLWithPath: path), completionHandler: { data, response, _ in
+            var result: URL?
+            var duration = 0.0
+            if let data = data, let response = response as? HTTPURLResponse, response.statusCode == 200 {
+                let target = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("novagram-\(UUID().uuidString).\(to == "round" ? "mp4" : "ogg")")
+                if (try? data.write(to: target)) != nil {
+                    result = target
+                    duration = Double(response.value(forHTTPHeaderField: "X-Duration") ?? "") ?? 0.0
+                }
+            }
+            DispatchQueue.main.async {
+                completion(result, duration)
+            }
+        })
+        task.resume()
+        return task
+    }
 }
