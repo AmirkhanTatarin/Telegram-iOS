@@ -499,14 +499,7 @@ extension ChatControllerImpl {
                 finish("Не получилось скачать видео")
                 return
             }
-            PHPhotoLibrary.requestAuthorization(for: .addOnly, handler: { status in
-                guard status == .authorized || status == .limited else {
-                    try? FileManager.default.removeItem(at: file)
-                    DispatchQueue.main.async {
-                        finish("Нет доступа к Фото: разрешите в Настройках")
-                    }
-                    return
-                }
+            let save = {
                 PHPhotoLibrary.shared().performChanges({
                     let _ = PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: file)
                 }, completionHandler: { success, _ in
@@ -515,7 +508,31 @@ extension ChatControllerImpl {
                         finish(success ? "Видео сохранено в Фото" : "Не получилось сохранить видео")
                     }
                 })
-            })
+            }
+            let denied = {
+                try? FileManager.default.removeItem(at: file)
+                DispatchQueue.main.async {
+                    finish("Нет доступа к Фото: разрешите в Настройках")
+                }
+            }
+            // приложение поддерживает iOS 13: доступ «только добавление» есть с iOS 14
+            if #available(iOS 14.0, *) {
+                PHPhotoLibrary.requestAuthorization(for: .addOnly, handler: { status in
+                    if status == .authorized || status == .limited {
+                        save()
+                    } else {
+                        denied()
+                    }
+                })
+            } else {
+                PHPhotoLibrary.requestAuthorization({ status in
+                    if status == .authorized {
+                        save()
+                    } else {
+                        denied()
+                    }
+                })
+            }
         })
     }
 }
