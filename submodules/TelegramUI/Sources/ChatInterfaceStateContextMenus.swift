@@ -1628,7 +1628,7 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
                 novaCollectLines({ lines in
                     let _ = NovaAPI.ai(mode: "reply", lines: lines, completion: { text in
                         guard let text = text, !text.isEmpty else {
-                            novaShowText("ИИ", "Сервер Nova не ответил. Попробуйте ещё раз.")
+                            novaShowText("ИИ", "Сервер Stogram не ответил. Попробуйте ещё раз.")
                             return
                         }
                         interfaceInteraction.updateTextInputStateAndMode { _, inputMode in
@@ -1643,7 +1643,7 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
                 f(.default)
                 novaCollectLines({ lines in
                     let _ = NovaAPI.ai(mode: "summary", lines: lines, completion: { text in
-                        novaShowText("Сводка чата", text ?? "Сервер Nova не ответил. Попробуйте ещё раз.")
+                        novaShowText("Сводка чата", text ?? "Сервер Stogram не ответил. Попробуйте ещё раз.")
                     })
                 })
             })))
@@ -2483,7 +2483,7 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
             })), at: 0)
             sgActions.insert(.separator, at: 1)
             
-            let swiftgramSubMenu: ContextMenuItem = .action(ContextMenuActionItem(text: "Swiftgram", icon: { theme in
+            let swiftgramSubMenu: ContextMenuItem = .action(ContextMenuActionItem(text: "Stogram", icon: { theme in
                 return generateTintedImage(image: UIImage(bundleImageName: "SwiftgramContextMenu"), color: theme.actionSheet.primaryTextColor)
             }, action: { c, f in
                 popSGItems = { [weak c] in

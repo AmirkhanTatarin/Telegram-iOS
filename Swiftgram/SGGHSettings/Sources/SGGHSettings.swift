@@ -6,6 +6,10 @@ import TelegramCore
 
 
 public func updateSGGHSettingsInteractivelly(context: AccountContext) {
+    // Stogram: no announcements from Swiftgram's settings repository.
+    if ({ return true }()) {
+        return
+    }
     let presentationData = context.sharedContext.currentPresentationData.with { $0 }
     let locale = presentationData.strings.baseLanguageCode
     let _ = Task {

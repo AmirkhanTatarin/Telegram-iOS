@@ -163,7 +163,7 @@ private func SGControllerEntries(presentationData: PresentationData, callListSet
     
     entries.append(.searchInput(id: id.count, section: .search, title: NSAttributedString(string: "🔍"), text: state.searchQuery ?? "", placeholder: strings.Common_Search))
 
-    entries.append(.disclosure(id: id.count, section: .nova, link: .novagram, text: "Novagram"))
+    entries.append(.disclosure(id: id.count, section: .nova, link: .novagram, text: "Функции Stogram"))
     
     
     if SGSimpleSettings.shared.canUseNY {
@@ -756,7 +756,7 @@ public func sgSettingsController(context: AccountContext/*, focusOnItemTag: Int?
         
         let entries = SGControllerEntries(presentationData: presentationData, callListSettings: callListSettings, experimentalUISettings: experimentalUISettings, appConfiguration: appConfiguration, nameColors: PeerNameColors.with(availableReplyColors: availableReplyColors, availableProfileColors: availableProfileColors), state: state)
         
-        let controllerState = ItemListControllerState(presentationData: ItemListPresentationData(presentationData), title: .text("Swiftgram"), leftNavigationButton: nil, rightNavigationButton: nil, backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back))
+        let controllerState = ItemListControllerState(presentationData: ItemListPresentationData(presentationData), title: .text("Stogram"), leftNavigationButton: nil, rightNavigationButton: nil, backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back))
         
         // TODO(swiftgram): focusOnItemTag support
         /* var index = 0
@@ -840,7 +840,7 @@ private func novagramEntries() -> [SGControllerEntry] {
     entries.append(.notice(id: id.count, section: .photo, text: "Фото уходят в 2560 px, видео — в максимальном качестве. Другое качество можно выбрать при отправке."))
 
     entries.append(.header(id: id.count, section: .voiceMessages, text: "ГОЛОСОВЫЕ И ИИ", badge: nil))
-    entries.append(.toggle(id: id.count, section: .voiceMessages, settingName: .novaWhisper, value: s.novaWhisper, text: "Расшифровка через Nova", enabled: true))
+    entries.append(.toggle(id: id.count, section: .voiceMessages, settingName: .novaWhisper, value: s.novaWhisper, text: "Расшифровка через сервер", enabled: true))
     entries.append(.notice(id: id.count, section: .voiceMessages, text: "Точнее встроенной. Если сервер недоступен — распознавание Apple."))
     return entries
 }
@@ -870,7 +870,7 @@ private func novagramSettingsController(context: AccountContext) -> ViewControll
     )
     let signal = combineLatest(refresh.get(), context.sharedContext.presentationData)
     |> map { _, presentationData -> (ItemListControllerState, (ItemListNodeState, Any)) in
-        let controllerState = ItemListControllerState(presentationData: ItemListPresentationData(presentationData), title: .text("Novagram"), leftNavigationButton: nil, rightNavigationButton: nil, backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back))
+        let controllerState = ItemListControllerState(presentationData: ItemListPresentationData(presentationData), title: .text("Функции Stogram"), leftNavigationButton: nil, rightNavigationButton: nil, backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back))
         let listState = ItemListNodeState(presentationData: ItemListPresentationData(presentationData), entries: novagramEntries(), style: .blocks, ensureVisibleItemTag: nil, initialScrollToItem: nil)
         return (controllerState, (listState, arguments))
     }

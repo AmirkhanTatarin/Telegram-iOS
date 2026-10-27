@@ -65,6 +65,10 @@ public class SGLocalizationManager {
     }
     
     public func downloadLocale(_ locale: String) {
+        // Stogram: strings ship with the app; Swiftgram's online strings would bring its name back.
+        if ({ return true }()) {
+            return
+        }
         #if DEBUG
         SGLogger.shared.log("Strings", "DEBUG ignoring locale download: \(locale)")
         if ({ return true }()) {
