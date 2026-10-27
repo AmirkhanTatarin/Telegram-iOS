@@ -164,7 +164,7 @@ private func SGControllerEntries(presentationData: PresentationData, callListSet
     
     entries.append(.searchInput(id: id.count, section: .search, title: NSAttributedString(string: "🔍"), text: state.searchQuery ?? "", placeholder: strings.Common_Search))
 
-    entries.append(.disclosure(id: id.count, section: .nova, link: .novagram, text: "Функции Stogram"))
+    entries.append(.disclosure(id: id.count, section: .nova, link: .novagram, text: "Stogram функции"))
     
     
     if SGSimpleSettings.shared.canUseNY {
@@ -878,9 +878,15 @@ private func novagramSettingsController(context: AccountContext) -> ViewControll
     )
     let signal = combineLatest(refresh.get(), context.sharedContext.presentationData)
     |> map { _, presentationData -> (ItemListControllerState, (ItemListNodeState, Any)) in
-        let controllerState = ItemListControllerState(presentationData: ItemListPresentationData(presentationData), title: .text("Функции Stogram"), leftNavigationButton: nil, rightNavigationButton: nil, backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back))
+        let controllerState = ItemListControllerState(presentationData: ItemListPresentationData(presentationData), title: .text("Stogram функции"), leftNavigationButton: nil, rightNavigationButton: nil, backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back))
         let listState = ItemListNodeState(presentationData: ItemListPresentationData(presentationData), entries: novagramEntries(), style: .blocks, ensureVisibleItemTag: nil, initialScrollToItem: nil)
         return (controllerState, (listState, arguments))
     }
     return ItemListController(context: context, state: signal)
 }
+
+/// Stogram's own features screen, also opened straight from the main Settings list.
+public func stogramFeaturesController(context: AccountContext) -> ViewController {
+    return novagramSettingsController(context: context)
+}
+
