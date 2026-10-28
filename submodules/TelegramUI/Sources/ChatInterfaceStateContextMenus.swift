@@ -22,6 +22,7 @@ import PresentationDataUtils
 import TelegramPresentationData
 import TelegramStringFormatting
 import UndoUI
+import PromptUI
 import ShimmerEffect
 import AnimatedAvatarSetNode
 import AvatarNode
@@ -1696,6 +1697,67 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
                     })
                 })
             })))
+            // Stogram: search this chat by meaning ("где скидывали реквизиты").
+            actions.append(.action(ContextMenuActionItem(text: "Поиск по смыслу", icon: { theme in
+                return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Search"), color: theme.actionSheet.primaryTextColor)
+            }, action: { _, f in
+                f(.default)
+                let novaPrompt = promptController(context: context, text: "Поиск по смыслу", subtitle: "Опишите, что ищете, своими словами. Например: «где скидывали реквизиты» или «когда договорились о встрече».", value: nil, placeholder: "Что найти", characterLimit: 200, apply: { query in
+                    let query = (query ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !query.isEmpty else {
+                        return
+                    }
+                    controllerInteraction.displayUndo(.info(title: nil, text: "Ищу по смыслу…", timeout: nil, customUndoText: nil))
+                    let _ = (context.account.postbox.aroundMessageHistoryViewForLocation(.peer(peerId: novaPeerId, threadId: nil), anchor: .upperBound, ignoreMessagesInTimestampRange: nil, ignoreMessageIds: Set(), count: 400, fixedCombinedReadStates: nil, topTaggedMessageIdNamespaces: Set(), tag: nil, appendMessagesFromTheSameGroup: false, namespaces: .not(Namespaces.Message.allNonRegular), orderStatistics: [])
+                    |> take(1)
+                    |> deliverOnMainQueue).startStandalone(next: { view, _, _ in
+                        var byId: [Int32: Message] = [:]
+                        var lines: [NovaAPI.ChatLine] = []
+                        for entry in view.entries {
+                            let item = entry.message
+                            let text = item.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                            if text.isEmpty || item.id.namespace != Namespaces.Message.Cloud {
+                                continue
+                            }
+                            byId[item.id.id] = item
+                            let from = item.flags.contains(.Incoming) ? (item.author?.debugDisplayTitle ?? "Собеседник") : "Я"
+                            lines.append(NovaAPI.ChatLine(from: "[\(item.id.id)] \(from)", text: String(text.prefix(400))))
+                        }
+                        let _ = NovaAPI.ai(mode: "find", lines: lines, hint: query, completion: { text in
+                            let ids = (text ?? "").components(separatedBy: CharacterSet.decimalDigits.inverted).compactMap { Int32($0) }
+                            let found = ids.compactMap { byId[$0] }
+                            guard !found.isEmpty else {
+                                novaShowText("Поиск по смыслу", text == nil ? "Сервер Stogram не ответил. Попробуйте ещё раз." : "Ничего похожего в последних сообщениях этого чата не нашлось.")
+                                return
+                            }
+                            let presentationData = context.sharedContext.currentPresentationData.with { $0 }
+                            let actionSheet = ActionSheetController(presentationData: presentationData)
+                            var items: [ActionSheetItem] = [ActionSheetTextItem(title: "Нашлось: «\(query)»")]
+                            for item in found.prefix(8) {
+                                let date = stringForFullDate(timestamp: item.timestamp, strings: presentationData.strings, dateTimeFormat: presentationData.dateTimeFormat)
+                                let snippet = item.text.replacingOccurrences(of: "\n", with: " ")
+                                items.append(ActionSheetButtonItem(title: "\(date) · \(snippet.prefix(60))", color: .accent, action: { [weak actionSheet] in
+                                    actionSheet?.dismissAnimated()
+                                    if let chatController = interfaceInteraction.chatController() as? ChatControllerImpl {
+                                        chatController.navigateToMessage(messageLocation: .index(item.index), animated: true)
+                                    }
+                                }))
+                            }
+                            actionSheet.setItemGroups([
+                                ActionSheetItemGroup(items: items),
+                                ActionSheetItemGroup(items: [
+                                    ActionSheetButtonItem(title: presentationData.strings.Common_Cancel, color: .accent, action: { [weak actionSheet] in
+                                        actionSheet?.dismissAnimated()
+                                    })
+                                ])
+                            ])
+                            controllerInteraction.presentController(actionSheet, nil)
+                        })
+                    })
+                })
+                controllerInteraction.presentController(novaPrompt, nil)
+            })))
+
             // From Platon: ask the AI about this message, translate it with the AI.
             let novaMessageText = message.text.trimmingCharacters(in: .whitespacesAndNewlines)
             if !novaMessageText.isEmpty {
