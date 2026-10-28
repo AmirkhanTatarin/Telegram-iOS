@@ -406,14 +406,3 @@ public func SGtrace(_ domain: String, what: @autoclosure() -> String) {
     }
 }
 #endif
-
-// Stogram: the shorthand newer Swiftgram has, used by the hidden chats and the AI autopilot.
-public extension UserDefaultsBackedDictionary {
-    subscript(key: Key) -> Value? {
-        return self.value(forKey: key)
-    }
-
-    var isEmpty: Bool {
-        return self.keys.isEmpty
-    }
-}
