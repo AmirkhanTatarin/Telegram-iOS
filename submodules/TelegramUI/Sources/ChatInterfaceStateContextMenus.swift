@@ -1497,7 +1497,9 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
             }
         }
         
-        if resourceAvailable, !message.containsSecretMedia && !isCopyProtected {
+        // Stogram: одноразовые фото/видео можно сохранить, если включено «Не удалять исчезающие» (файл докачается сам)
+        let novaSecretSave = message.containsSecretMedia && SGSimpleSettings.shared.novaSaveSelfDestruct
+        if resourceAvailable || novaSecretSave, !message.containsSecretMedia || novaSecretSave, !isCopyProtected {
             var mediaReference: AnyMediaReference?
             var isVideo = false
             for media in message.effectiveMedia {
