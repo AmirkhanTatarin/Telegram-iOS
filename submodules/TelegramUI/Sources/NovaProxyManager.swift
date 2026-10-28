@@ -23,9 +23,6 @@ final class NovaProxyManager {
 
     init(context: AccountContext) {
         self.context = context
-        guard !StogramProxy.servers.isEmpty else {
-            return
-        }
         self.settingsDisposable = (context.sharedContext.accountManager.sharedData(keys: [SharedDataKeys.proxySettings])
         |> map { sharedData -> ProxySettings in
             return sharedData.entries[SharedDataKeys.proxySettings]?.get(ProxySettings.self) ?? ProxySettings.defaultSettings
@@ -60,14 +57,29 @@ final class NovaProxyManager {
         guard let server else {
             return false
         }
-        return StogramProxy.servers.contains(server)
+        return StogramProxy.isManaged(server)
     }
+
+    private var lastListRefresh: Double = 0.0
 
     private func measure() {
         guard SGSimpleSettings.shared.stogramProxyAuto else {
             return
         }
-        let servers = StogramProxy.servers
+        // The public list goes stale fast: refresh it every 30 minutes, then measure again.
+        let now = CFAbsoluteTimeGetCurrent()
+        if now - self.lastListRefresh > 30.0 * 60.0 {
+            self.lastListRefresh = now
+            StogramProxy.refreshPublicList(completion: { [weak self] updated in
+                if updated {
+                    self?.measure()
+                }
+            })
+        }
+        let servers = StogramProxy.candidates
+        guard !servers.isEmpty else {
+            return
+        }
         let statuses = ProxyServersStatuses(network: self.context.account.network, servers: .single(servers))
         self.statuses = statuses
         self.statusesDisposable.set((statuses.statuses()
@@ -87,13 +99,13 @@ final class NovaProxyManager {
         }
         var best: (ProxyServerSettings, Double)?
         var stillChecking = false
-        for server in StogramProxy.servers {
-            switch values[server] {
+        for (server, status) in values {
+            switch status {
             case let .available(ping):
                 if best == nil || ping < best!.1 {
                     best = (server, ping)
                 }
-            case .checking, .none:
+            case .checking:
                 stillChecking = true
             case .notAvailable:
                 break
@@ -117,10 +129,13 @@ final class NovaProxyManager {
             return
         }
         let _ = StogramProxy.current.swap(StogramProxy.Status(host: server.host, ping: ping))
+        StogramProxy.markManaged(server)
         let _ = updateProxySettingsInteractively(accountManager: self.context.sharedContext.accountManager, { settings in
             var settings = settings
-            for item in StogramProxy.servers where !settings.servers.contains(item) {
-                settings.servers.append(item)
+            // Only the chosen one is visible in the proxy list; earlier picks of ours are cleaned up.
+            settings.servers.removeAll(where: { $0 != server && StogramProxy.isManaged($0) })
+            if !settings.servers.contains(server) {
+                settings.servers.insert(server, at: 0)
             }
             settings.activeServer = server
             settings.enabled = true

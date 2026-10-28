@@ -1067,19 +1067,28 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         // Stogram: our proxy is added and turned on once, so Telegram connects without a VPN.
         // It stays in Settings → Data and Storage → Proxy, where it can be switched off.
         let stogramProxyKey = "stogramProxyInstalled"
-        if !UserDefaults.standard.bool(forKey: stogramProxyKey), SGSimpleSettings.shared.stogramProxyAuto, let server = StogramProxy.servers.first {
-            UserDefaults.standard.set(true, forKey: stogramProxyKey)
-            let _ = updateProxySettingsInteractively(accountManager: accountManager, { settings in
-                var settings = settings
-                for item in StogramProxy.servers where !settings.servers.contains(item) {
-                    settings.servers.append(item)
+        if !UserDefaults.standard.bool(forKey: stogramProxyKey), SGSimpleSettings.shared.stogramProxyAuto {
+            // The public list (checked from Moscow, fastest first) gives the login screen a working proxy too;
+            // after login NovaProxyManager keeps picking the fastest one from the phone itself.
+            StogramProxy.refreshPublicList(completion: { _ in
+                guard let server = StogramProxy.candidates.first else {
+                    return
                 }
-                if settings.activeServer == nil || !settings.enabled {
+                UserDefaults.standard.set(true, forKey: stogramProxyKey)
+                StogramProxy.markManaged(server)
+                let _ = updateProxySettingsInteractively(accountManager: accountManager, { settings in
+                    var settings = settings
+                    if settings.enabled, let active = settings.activeServer, !StogramProxy.isManaged(active) {
+                        return settings
+                    }
+                    if !settings.servers.contains(server) {
+                        settings.servers.insert(server, at: 0)
+                    }
                     settings.activeServer = server
                     settings.enabled = true
-                }
-                return settings
-            }).start()
+                    return settings
+                }).start()
+            })
         }
 
         telegramUIDeclareEncodables()
