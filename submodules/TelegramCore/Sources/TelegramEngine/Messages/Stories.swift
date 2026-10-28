@@ -1,3 +1,4 @@
+import SGSimpleSettings
 import Foundation
 import SwiftSignalKit
 import Postbox
@@ -2086,6 +2087,10 @@ func _internal_markStoryAsSeen(account: Account, peerId: PeerId, id: Int32, asPi
             }
             #endif
             
+            // Stogram: "Смотреть истории незаметно" covers stories opened from a profile too.
+            if SGSimpleSettings.shared.novaGhostStories {
+                return .complete()
+            }
             return account.network.request(Api.functions.stories.incrementStoryViews(peer: inputPeer, id: [id]))
             |> `catch` { _ -> Signal<Api.Bool, NoError> in
                 return .single(.boolFalse)
