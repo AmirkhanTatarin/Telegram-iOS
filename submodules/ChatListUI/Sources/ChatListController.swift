@@ -7407,6 +7407,12 @@ private final class ChatListLocationContext {
                 titleContent = NetworkStatusTitle(text: defaultTitle, activity: false, hasProxy: isRoot && hasProxy, connectsViaProxy: connectsViaProxy, isPasscodeSet: isRoot && isPasscodeSet, isManuallyLocked: isRoot && isManuallyLocked, peerStatus: peerStatus)
             }
             
+            // Stogram: our proxy works quietly, without the shield in the title.
+            if titleContent.hasProxy && SGSimpleSettings.shared.stogramProxyAuto {
+                titleContent.hasProxy = false
+                titleContent.connectsViaProxy = false
+                self.proxyButton = nil
+            }
             if titleContent.hasProxy {
                 let proxyStatus: ChatTitleProxyStatus
                 if titleContent.connectsViaProxy {
