@@ -1588,28 +1588,34 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
             let novaPeerId = message.id.peerId
             let novaAnchor = message.index
             let novaCollectLines: (@escaping ([NovaAPI.ChatLine]) -> Void) -> Void = { completion in
-                let _ = (context.account.postbox.transaction { transaction -> [NovaAPI.ChatLine] in
-                    var lines: [NovaAPI.ChatLine] = []
-                    transaction.withAllMessages(peerId: novaPeerId, namespace: Namespaces.Message.Cloud, reversed: true, { item in
-                        if item.index > novaAnchor {
-                            return true
-                        }
-                        let text = item.text.trimmingCharacters(in: .whitespacesAndNewlines)
-                        if !text.isEmpty {
-                            let from: String
-                            if !item.flags.contains(.Incoming) {
-                                from = "Амир"
-                            } else {
-                                from = item.author?.debugDisplayTitle ?? "Собеседник"
-                            }
-                            lines.append(NovaAPI.ChatLine(from: from, text: text))
-                        }
-                        return lines.count < 60
-                    })
-                    return Array(lines.reversed())
-                }
-                |> deliverOnMainQueue).startStandalone(next: { lines in
+                // The last 60 messages up to the pressed one, read the same way the chat itself reads its history.
+                var completed = false
+                let finish: ([NovaAPI.ChatLine]) -> Void = { lines in
+                    if completed {
+                        return
+                    }
+                    completed = true
                     completion(lines)
+                }
+                let _ = (context.account.postbox.aroundMessageHistoryViewForLocation(.peer(peerId: novaPeerId, threadId: nil), anchor: .index(novaAnchor), ignoreMessagesInTimestampRange: nil, ignoreMessageIds: Set(), count: 60, fixedCombinedReadStates: nil, topTaggedMessageIdNamespaces: Set(), tag: nil, appendMessagesFromTheSameGroup: false, namespaces: .not(Namespaces.Message.allNonRegular), orderStatistics: [])
+                |> take(1)
+                |> deliverOnMainQueue).startStandalone(next: { view, _, _ in
+                    var lines: [NovaAPI.ChatLine] = []
+                    for entry in view.entries where entry.message.index <= novaAnchor {
+                        let item = entry.message
+                        let text = item.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if text.isEmpty {
+                            continue
+                        }
+                        let from = item.flags.contains(.Incoming) ? (item.author?.debugDisplayTitle ?? "Собеседник") : "Амир"
+                        lines.append(NovaAPI.ChatLine(from: from, text: text))
+                    }
+                    finish(lines)
+                })
+                // Never hang: after 5 seconds answer to the pressed message alone.
+                Queue.mainQueue().after(5.0, {
+                    let text = message.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                    finish(text.isEmpty ? [] : [NovaAPI.ChatLine(from: message.flags.contains(.Incoming) ? "Собеседник" : "Амир", text: text)])
                 })
             }
             let novaShowText: (String, String) -> Void = { title, text in

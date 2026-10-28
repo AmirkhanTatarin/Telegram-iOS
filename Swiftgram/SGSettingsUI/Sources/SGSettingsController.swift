@@ -145,6 +145,7 @@ private enum SGDisclosureLink: String {
     case languageSettings
     case novagram
     case fakePasscode
+    case moreSettings
 }
 
 private struct PeerNameColorScreenState: Equatable {
@@ -169,7 +170,6 @@ private func SGControllerEntries(presentationData: PresentationData, callListSet
     
     entries.append(.searchInput(id: id.count, section: .search, title: NSAttributedString(string: "🔍"), text: state.searchQuery ?? "", placeholder: strings.Common_Search))
 
-    entries.append(.disclosure(id: id.count, section: .nova, link: .novagram, text: "Stogram функции"))
     
     
     if SGSimpleSettings.shared.canUseNY {
@@ -735,7 +735,7 @@ public func sgSettingsController(context: AccountContext/*, focusOnItemTag: Int?
         switch (link) {
             case .novagram:
                 pushControllerImpl?(novagramSettingsController(context: context))
-            case .fakePasscode:
+            case .fakePasscode, .moreSettings:
                 break
             case .languageSettings:
                 pushControllerImpl?(context.sharedContext.makeLocalizationListController(context: context))
@@ -775,7 +775,7 @@ public func sgSettingsController(context: AccountContext/*, focusOnItemTag: Int?
         
         let entries = SGControllerEntries(presentationData: presentationData, callListSettings: callListSettings, experimentalUISettings: experimentalUISettings, appConfiguration: appConfiguration, nameColors: PeerNameColors.with(availableReplyColors: availableReplyColors, availableProfileColors: availableProfileColors), state: state)
         
-        let controllerState = ItemListControllerState(presentationData: ItemListPresentationData(presentationData), title: .text("Stogram"), leftNavigationButton: nil, rightNavigationButton: nil, backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back))
+        let controllerState = ItemListControllerState(presentationData: ItemListPresentationData(presentationData), title: .text("Все настройки"), leftNavigationButton: nil, rightNavigationButton: nil, backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back))
         
         // TODO(swiftgram): focusOnItemTag support
         /* var index = 0
@@ -873,12 +873,17 @@ private func novagramEntries() -> [SGControllerEntry] {
     entries.append(.header(id: id.count, section: .voiceMessages, text: "ГОЛОСОВЫЕ И ИИ", badge: nil))
     entries.append(.toggle(id: id.count, section: .voiceMessages, settingName: .novaWhisper, value: s.novaWhisper, text: "Расшифровка через сервер", enabled: true))
     entries.append(.notice(id: id.count, section: .voiceMessages, text: "Точнее встроенной. Если сервер недоступен — распознавание Apple."))
+
+    entries.append(.header(id: id.count, section: .contextMenu, text: "ЕЩЁ", badge: nil))
+    entries.append(.disclosure(id: id.count, section: .contextMenu, link: .moreSettings, text: "Все настройки Stogram"))
+    entries.append(.notice(id: id.count, section: .contextMenu, text: "Папки, вкладки, переводчик, меню сообщений, стикеры и другие тонкие настройки."))
     return entries
 }
 
 private func novagramSettingsController(context: AccountContext) -> ViewController {
     let refresh = ValuePromise(true, ignoreRepeated: false)
     var presentImpl: ((ViewController) -> Void)?
+    var pushImpl: ((ViewController) -> Void)?
     let arguments = SGItemListArguments<SGBoolSetting, SGSliderSetting, SGOneFromManySetting, SGDisclosureLink, AnyHashable>(
         context: context,
         setBoolValue: { setting, value in
@@ -908,6 +913,10 @@ private func novagramSettingsController(context: AccountContext) -> ViewControll
             refresh.set(true)
         },
         openDisclosureLink: { link in
+            if case .moreSettings = link {
+                pushImpl?(sgSettingsController(context: context))
+                return
+            }
             guard case .fakePasscode = link else {
                 return
             }
@@ -934,13 +943,16 @@ private func novagramSettingsController(context: AccountContext) -> ViewControll
     )
     let signal = combineLatest(refresh.get(), context.sharedContext.presentationData)
     |> map { _, presentationData -> (ItemListControllerState, (ItemListNodeState, Any)) in
-        let controllerState = ItemListControllerState(presentationData: ItemListPresentationData(presentationData), title: .text("Stogram функции"), leftNavigationButton: nil, rightNavigationButton: nil, backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back))
+        let controllerState = ItemListControllerState(presentationData: ItemListPresentationData(presentationData), title: .text("Stogram"), leftNavigationButton: nil, rightNavigationButton: nil, backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back))
         let listState = ItemListNodeState(presentationData: ItemListPresentationData(presentationData), entries: novagramEntries(), style: .blocks, ensureVisibleItemTag: nil, initialScrollToItem: nil)
         return (controllerState, (listState, arguments))
     }
     let controller = ItemListController(context: context, state: signal)
     presentImpl = { [weak controller] c in
         controller?.present(c, in: .window(.root))
+    }
+    pushImpl = { [weak controller] c in
+        (controller?.navigationController as? NavigationController)?.pushViewController(c)
     }
     return controller
 }

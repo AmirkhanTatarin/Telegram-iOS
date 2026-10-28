@@ -223,11 +223,9 @@ func settingsItems(showProfileId: Bool, data: PeerInfoScreenData?, context: Acco
     let sgWebSettings = context.currentAppConfiguration.with({ $0 }).sgWebSettings
     // Stogram: no Swiftgram Pro row.
     let _ = (sgWebSettings, swiftgramProLabel)
-    items[.swiftgram]!.append(PeerInfoScreenDisclosureItem(id: 2, label: .none, text: "Stogram функции", icon: PresentationResourcesSettings.swiftgram, action: {
-        interaction.openSettings(.stogramFeatures)
-    }))
+    // Stogram: one row; our features first, the rest of the old settings at the bottom of that screen.
     items[.swiftgram]!.append(PeerInfoScreenDisclosureItem(id: 1, label: swiftgramLabel, text: "Stogram", icon: PresentationResourcesSettings.swiftgram, action: {
-        interaction.openSettings(.swiftgram)
+        interaction.openSettings(.stogramFeatures)
     }))
 
     var appIndex = 1000
