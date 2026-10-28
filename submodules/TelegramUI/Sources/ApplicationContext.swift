@@ -119,6 +119,7 @@ final class AuthorizedApplicationContext {
     private let inAppNotificationSettingsDisposable = MetaDisposable()
     private let notificationMessagesDisposable = MetaDisposable()
     private var novaProxyManager: NovaProxyManager?   // Stogram: our proxies, the fastest working one is picked quietly
+    private var novaSendWhenOnline: NovaSendWhenOnline?   // Stogram: «Отправить, когда в сети»
     private var novaAntiSpam: NovaAntiSpam?   // Stogram: антиспам для личек от незнакомцев
     private let termsOfServiceUpdatesDisposable = MetaDisposable()
     private let termsOfServiceProceedToBotDisposable = MetaDisposable()
@@ -299,6 +300,7 @@ final class AuthorizedApplicationContext {
 
         self.novaAntiSpam = NovaAntiSpam(context: context)
         self.novaProxyManager = NovaProxyManager(context: context)
+        self.novaSendWhenOnline = NovaSendWhenOnline(context: context)
 
         let engine = context.engine
         self.notificationMessagesDisposable.set((context.account.stateManager.notificationMessages

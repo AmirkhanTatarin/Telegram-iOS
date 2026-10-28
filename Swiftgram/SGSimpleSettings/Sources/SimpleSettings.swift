@@ -170,6 +170,9 @@ public class SGSimpleSettings {
         case novaWhisper
         case novaHQVideo
         case stogramProxyAuto
+        case stogramTemplates
+        case stogramPeerNotes
+        case stogramSendWhenOnline
         case novaAntiSpam
         case hideChannelBottomButton
         case forceSystemSharing
@@ -347,6 +350,9 @@ public class SGSimpleSettings {
         Keys.novaWhisper.rawValue: true,
         Keys.novaHQVideo.rawValue: true,
         Keys.stogramProxyAuto.rawValue: true,
+        Keys.stogramTemplates.rawValue: ["Привет! Сейчас не могу, напишу позже.", "Скинь, пожалуйста, подробнее.", "Окей, договорились 👍", "Спасибо!"],
+        Keys.stogramPeerNotes.rawValue: [:],
+        Keys.stogramSendWhenOnline.rawValue: [:],
         Keys.novaAntiSpam.rawValue: false,
         Keys.forceSystemSharing.rawValue: false,
         Keys.confirmCalls.rawValue: true,
@@ -634,6 +640,14 @@ public class SGSimpleSettings {
 
     @UserDefault(key: Keys.stogramProxyAuto.rawValue)
     public var stogramProxyAuto: Bool
+
+    // Stogram: quick reply templates, private notes about people, messages waiting for the person to come online.
+    @UserDefault(key: Keys.stogramTemplates.rawValue)
+    public var stogramTemplates: [String]
+
+    public var stogramPeerNotes = UserDefaultsBackedDictionary<String, String>(userDefaultsKey: Keys.stogramPeerNotes.rawValue, threadSafe: true)
+
+    public var stogramSendWhenOnline = UserDefaultsBackedDictionary<String, String>(userDefaultsKey: Keys.stogramSendWhenOnline.rawValue, threadSafe: true)
 
     @UserDefault(key: Keys.novaAntiSpam.rawValue)
     public var novaAntiSpam: Bool

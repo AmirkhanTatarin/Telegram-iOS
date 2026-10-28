@@ -7037,6 +7037,8 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
         })
     }
 
+    var stogramNoteShown = false
+
     // MARK: PLATON FORK — auto-delete own messages state
     private var sgAutoDeleteOwnStarted = false
     private var sgAutoDeleteOwnDisposable: Disposable?
@@ -7771,6 +7773,11 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
         // MARK: PLATON FORK — apply AI autopilot state for this chat (attach/detach per current setting).
         if let autopilotPeerId = self.chatLocation.peerId {
             self.sgApplyAutopilotState(peerId: autopilotPeerId)
+        }
+        // Stogram: the private note about the person, once per opening.
+        if !self.stogramNoteShown {
+            self.stogramNoteShown = true
+            self.stogramShowNoteIfNeeded()
         }
 
         self.chatDisplayNode.historyNode.experimentalSnapScrollToItem = false

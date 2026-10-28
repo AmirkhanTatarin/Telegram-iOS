@@ -1,3 +1,4 @@
+import SGSimpleSettings
 import Foundation
 import UIKit
 import SwiftSignalKit
@@ -381,6 +382,34 @@ extension ChatControllerImpl {
                 let text = newValue ? "Общение ИИ включено. ИИ сам отвечает на новые сообщения, важные оставляет тебе." : "Общение ИИ выключено."
                 self.present(UndoOverlayController(presentationData: presentationData, content: .info(title: nil, text: text, timeout: 4.0, customUndoText: nil), elevatedLayout: false, position: .top, animateInAsReplacement: false, action: { _ in return false }), in: .current)
             })))
+        }
+
+        // Stogram: quick reply templates, a private note about the person, "send when online".
+        if self.chatLocation.threadId == nil {
+            items.append(.action(ContextMenuActionItem(text: "Шаблоны", icon: { theme in
+                return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Copy"), color: theme.contextMenu.primaryColor)
+            }, action: { [weak self] action in
+                action.dismissWithResult(.default)
+                self?.stogramPresentTemplates()
+            })))
+        }
+        if self.chatLocation.threadId == nil, let user = self.presentationInterfaceState.renderedPeer?.chatMainPeer as? TelegramUser, peerId != self.context.account.peerId {
+            let hasNote = SGSimpleSettings.shared.stogramPeerNotes["\(peerId.toInt64())"] != nil
+            items.append(.action(ContextMenuActionItem(text: hasNote ? "Заметка о человеке ✓" : "Заметка о человеке", icon: { theme in
+                return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Edit"), color: theme.contextMenu.primaryColor)
+            }, action: { [weak self] action in
+                action.dismissWithResult(.default)
+                self?.stogramEditNote(peerId: peerId)
+            })))
+            if user.botInfo == nil {
+                let pending = NovaSendWhenOnline.pendingText(peerId: peerId) != nil
+                items.append(.action(ContextMenuActionItem(text: pending ? "Отменить «когда в сети»" : "Отправить, когда в сети", icon: { theme in
+                    return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Schedule"), color: theme.contextMenu.primaryColor)
+                }, action: { [weak self] action in
+                    action.dismissWithResult(.default)
+                    self?.stogramSendWhenOnline(peerId: peerId)
+                })))
+            }
         }
         
         if let threadId = self.chatLocation.threadId, let peer = self.presentationInterfaceState.renderedPeer?.chatMainPeer, (peer is TelegramChannel || peer is TelegramGroup) {
