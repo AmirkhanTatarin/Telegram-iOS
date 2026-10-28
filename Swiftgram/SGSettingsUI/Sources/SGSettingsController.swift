@@ -49,6 +49,7 @@ private enum SGControllerSection: Int32, SGItemListSection {
 
 private enum SGBoolSetting: String {
     case novaWhisper
+    case stogramProxyAuto
     case novaGhostAll
     case hideSponsored
     case autoDeleteOwn
@@ -146,6 +147,7 @@ private enum SGDisclosureLink: String {
     case novagram
     case fakePasscode
     case moreSettings
+    case proxyList
 }
 
 private struct PeerNameColorScreenState: Equatable {
@@ -528,6 +530,8 @@ public func sgSettingsController(context: AccountContext/*, focusOnItemTag: Int?
             SGSimpleSettings.shared.novaHQVideo = value
         case .hideSponsored:
             SGSimpleSettings.shared.hideSponsored = value
+        case .stogramProxyAuto:
+            SGSimpleSettings.shared.stogramProxyAuto = value
         case .novaGhostAll:
             SGSimpleSettings.shared.novaGhostRead = value
             SGSimpleSettings.shared.novaGhostOnline = value
@@ -735,7 +739,7 @@ public func sgSettingsController(context: AccountContext/*, focusOnItemTag: Int?
         switch (link) {
             case .novagram:
                 pushControllerImpl?(novagramSettingsController(context: context))
-            case .fakePasscode, .moreSettings:
+            case .fakePasscode, .moreSettings, .proxyList:
                 break
             case .languageSettings:
                 pushControllerImpl?(context.sharedContext.makeLocalizationListController(context: context))
@@ -839,6 +843,25 @@ private func novagramEntries() -> [SGControllerEntry] {
     let id = SGItemListCounter()
     let s = SGSimpleSettings.shared
 
+    if !StogramProxy.servers.isEmpty {
+        let proxyStatus: String
+        if !s.stogramProxyAuto {
+            proxyStatus = "Выключен. Без него Telegram может не открываться без VPN."
+        } else if let current = StogramProxy.current.with({ $0 }), !current.host.isEmpty {
+            if let ping = current.ping {
+                proxyStatus = "Сервер: \(StogramProxy.title(host: current.host)) · \(Int(ping * 1000.0)) мс. Самый быстрый выбирается сам."
+            } else {
+                proxyStatus = "Сервер: \(StogramProxy.title(host: current.host)) · проверяю… Самый быстрый выбирается сам."
+            }
+        } else {
+            proxyStatus = "Проверяю серверы… Самый быстрый выбирается сам."
+        }
+        entries.append(.header(id: id.count, section: .search, text: "ПРОКСИ", badge: nil))
+        entries.append(.toggle(id: id.count, section: .search, settingName: .stogramProxyAuto, value: s.stogramProxyAuto, text: "Прокси Stogram", enabled: true))
+        entries.append(.disclosure(id: id.count, section: .search, link: .proxyList, text: "Изменить"))
+        entries.append(.notice(id: id.count, section: .search, text: proxyStatus))
+    }
+
     let ghostAll = s.novaGhostRead && s.novaGhostOnline && s.novaGhostTyping && s.novaGhostStories
     entries.append(.header(id: id.count, section: .nova, text: "РЕЖИМ ПРИЗРАКА", badge: nil))
     entries.append(.toggle(id: id.count, section: .nova, settingName: .novaGhostAll, value: ghostAll, text: "Режим призрака", enabled: true))
@@ -889,6 +912,8 @@ private func novagramSettingsController(context: AccountContext) -> ViewControll
         setBoolValue: { setting, value in
             let s = SGSimpleSettings.shared
             switch setting {
+            case .stogramProxyAuto:
+                StogramProxy.setEnabled(value, accountManager: context.sharedContext.accountManager)
             case .novaGhostAll:
                 s.novaGhostRead = value
                 s.novaGhostOnline = value
@@ -917,6 +942,10 @@ private func novagramSettingsController(context: AccountContext) -> ViewControll
                 pushImpl?(sgSettingsController(context: context))
                 return
             }
+            if case .proxyList = link {
+                pushImpl?(context.sharedContext.makeProxySettingsController(context: context))
+                return
+            }
             guard case .fakePasscode = link else {
                 return
             }
@@ -941,8 +970,10 @@ private func novagramSettingsController(context: AccountContext) -> ViewControll
             })
         }
     )
-    let signal = combineLatest(refresh.get(), context.sharedContext.presentationData)
-    |> map { _, presentationData -> (ItemListControllerState, (ItemListNodeState, Any)) in
+    // Refresh every few seconds so the proxy ping stays current while the screen is open.
+    let tick: Signal<Void, NoError> = (Signal<Void, NoError>.single(Void()) |> then(Signal<Void, NoError>.complete() |> delay(3.0, queue: Queue.mainQueue()))) |> restart
+    let signal = combineLatest(refresh.get(), context.sharedContext.presentationData, tick)
+    |> map { _, presentationData, _ -> (ItemListControllerState, (ItemListNodeState, Any)) in
         let controllerState = ItemListControllerState(presentationData: ItemListPresentationData(presentationData), title: .text("Stogram"), leftNavigationButton: nil, rightNavigationButton: nil, backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back))
         let listState = ItemListNodeState(presentationData: ItemListPresentationData(presentationData), entries: novagramEntries(), style: .blocks, ensureVisibleItemTag: nil, initialScrollToItem: nil)
         return (controllerState, (listState, arguments))

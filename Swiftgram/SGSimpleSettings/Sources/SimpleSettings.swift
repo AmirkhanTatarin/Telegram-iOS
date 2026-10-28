@@ -169,6 +169,7 @@ public class SGSimpleSettings {
         case novaUnlockProtected
         case novaWhisper
         case novaHQVideo
+        case stogramProxyAuto
         case novaAntiSpam
         case hideChannelBottomButton
         case forceSystemSharing
@@ -345,6 +346,7 @@ public class SGSimpleSettings {
         Keys.novaUnlockProtected.rawValue: true,
         Keys.novaWhisper.rawValue: true,
         Keys.novaHQVideo.rawValue: true,
+        Keys.stogramProxyAuto.rawValue: true,
         Keys.novaAntiSpam.rawValue: false,
         Keys.forceSystemSharing.rawValue: false,
         Keys.confirmCalls.rawValue: true,
@@ -629,6 +631,9 @@ public class SGSimpleSettings {
 
     @UserDefault(key: Keys.novaHQVideo.rawValue)
     public var novaHQVideo: Bool
+
+    @UserDefault(key: Keys.stogramProxyAuto.rawValue)
+    public var stogramProxyAuto: Bool
 
     @UserDefault(key: Keys.novaAntiSpam.rawValue)
     public var novaAntiSpam: Bool
