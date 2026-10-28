@@ -144,7 +144,7 @@ func chatContextMenuItems(context: AccountContext, peerId: EnginePeer.Id, promoI
                     do {
                         let hiddenKey = String(peerId.toInt64())
                         let isHidden = SGSimpleSettings.shared.sgHiddenPeers[hiddenKey] != nil
-                        items.append(.action(ContextMenuActionItem(text: isHidden ? "Показать чат" : "Скрыть чат (фейк-код)", icon: { theme in generateTintedImage(image: UIImage(bundleImageName: isHidden ? "Chat/Context Menu/Unmute" : "Chat/Context Menu/Mute"), color: theme.contextMenu.primaryColor) }, action: { _, f in
+                        items.append(.action(ContextMenuActionItem(text: isHidden ? "Показать чат" : "Скрыть чат", icon: { theme in generateTintedImage(image: UIImage(bundleImageName: isHidden ? "Chat/Context Menu/Unmute" : "Chat/Context Menu/Mute"), color: theme.contextMenu.primaryColor) }, action: { _, f in
                             if isHidden {
                                 _ = SGSimpleSettings.shared.sgHiddenPeers.removeValue(forKey: hiddenKey)
                             } else {

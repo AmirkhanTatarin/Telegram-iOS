@@ -49,6 +49,7 @@ private enum SGControllerSection: Int32, SGItemListSection {
 
 private enum SGBoolSetting: String {
     case novaWhisper
+    case novaGhostAll
     case hideSponsored
     case autoDeleteOwn
     case novaHQVideo
@@ -527,6 +528,11 @@ public func sgSettingsController(context: AccountContext/*, focusOnItemTag: Int?
             SGSimpleSettings.shared.novaHQVideo = value
         case .hideSponsored:
             SGSimpleSettings.shared.hideSponsored = value
+        case .novaGhostAll:
+            SGSimpleSettings.shared.novaGhostRead = value
+            SGSimpleSettings.shared.novaGhostOnline = value
+            SGSimpleSettings.shared.novaGhostTyping = value
+            SGSimpleSettings.shared.novaGhostStories = value
         case .autoDeleteOwn:
             SGSimpleSettings.shared.autoDeleteOwn = value
         case .novaAntiSpam:
@@ -833,25 +839,27 @@ private func novagramEntries() -> [SGControllerEntry] {
     let id = SGItemListCounter()
     let s = SGSimpleSettings.shared
 
-    entries.append(.header(id: id.count, section: .nova, text: "НЕВИДИМКА", badge: nil))
+    let ghostAll = s.novaGhostRead && s.novaGhostOnline && s.novaGhostTyping && s.novaGhostStories
+    entries.append(.header(id: id.count, section: .nova, text: "РЕЖИМ ПРИЗРАКА", badge: nil))
+    entries.append(.toggle(id: id.count, section: .nova, settingName: .novaGhostAll, value: ghostAll, text: "Режим призрака", enabled: true))
     entries.append(.toggle(id: id.count, section: .nova, settingName: .novaGhostRead, value: s.novaGhostRead, text: "Не отмечать прочитанным", enabled: true))
     entries.append(.toggle(id: id.count, section: .nova, settingName: .novaGhostOnline, value: s.novaGhostOnline, text: "Скрывать «в сети»", enabled: true))
     entries.append(.toggle(id: id.count, section: .nova, settingName: .novaGhostTyping, value: s.novaGhostTyping, text: "Скрывать «печатает»", enabled: true))
-    entries.append(.toggle(id: id.count, section: .nova, settingName: .novaGhostStories, value: s.novaGhostStories, text: "Истории незаметно", enabled: true))
-    entries.append(.notice(id: id.count, section: .nova, text: "Собеседник не видит, что вы прочитали или прослушали сообщение."))
+    entries.append(.toggle(id: id.count, section: .nova, settingName: .novaGhostStories, value: s.novaGhostStories, text: "Смотреть истории незаметно", enabled: true))
+    entries.append(.notice(id: id.count, section: .nova, text: "Вас не видно в сети, собеседник не видит «прочитано» и «печатает». Чужие статусы вы видите как обычно."))
 
     entries.append(.header(id: id.count, section: .other, text: "СООБЩЕНИЯ", badge: nil))
     entries.append(.toggle(id: id.count, section: .other, settingName: .novaKeepDeleted, value: s.novaKeepDeleted, text: "Сохранять удалённые", enabled: true))
-    entries.append(.toggle(id: id.count, section: .other, settingName: .novaEditHistory, value: s.novaEditHistory, text: "История правок", enabled: true))
-    entries.append(.toggle(id: id.count, section: .other, settingName: .novaSaveSelfDestruct, value: s.novaSaveSelfDestruct, text: "Не удалять исчезающие", enabled: true))
-    entries.append(.toggle(id: id.count, section: .other, settingName: .novaUnlockProtected, value: s.novaUnlockProtected, text: "Сохранение из защищённых", enabled: true))
+    entries.append(.toggle(id: id.count, section: .other, settingName: .novaEditHistory, value: s.novaEditHistory, text: "Сохранять правки", enabled: true))
+    entries.append(.toggle(id: id.count, section: .other, settingName: .novaSaveSelfDestruct, value: s.novaSaveSelfDestruct, text: "Одноразовые не исчезают", enabled: true))
+    entries.append(.toggle(id: id.count, section: .other, settingName: .novaUnlockProtected, value: s.novaUnlockProtected, text: "Сохранять из защищённых чатов", enabled: true))
     entries.append(.toggle(id: id.count, section: .other, settingName: .hideSponsored, value: s.hideSponsored, text: "Скрывать рекламу в каналах", enabled: true))
     entries.append(.toggle(id: id.count, section: .other, settingName: .autoDeleteOwn, value: s.autoDeleteOwn, text: "Удалять мои сообщения через минуту", enabled: true))
-    entries.append(.notice(id: id.count, section: .other, text: "Удалённое остаётся в чате с пометкой «удалено». Прошлые версии — в меню сообщения. Свои сообщения удаляются у всех через минуту после отправки, пока открыт чат."))
+    entries.append(.notice(id: id.count, section: .other, text: "Удалённое собеседником остаётся с пометкой «удалено», прошлые версии правок — в меню сообщения. Свои сообщения удаляются у всех через минуту, пока открыт чат."))
 
     entries.append(.header(id: id.count, section: .profiles, text: "СКРЫТЫЕ ЧАТЫ", badge: nil))
     entries.append(.disclosure(id: id.count, section: .profiles, link: .fakePasscode, text: s.sgFakePasscode.isEmpty ? "Фейк-код" : "Фейк-код: задан"))
-    entries.append(.notice(id: id.count, section: .profiles, text: "Сначала включите обычный код-пароль. Чаты скрываются в их меню («Скрыть при фейк-коде»). Если на экране блокировки ввести фейк-код, они пропадут из списка и поиска."))
+    entries.append(.notice(id: id.count, section: .profiles, text: "Зажмите чат в списке → «Скрыть чат». Если на экране блокировки ввести фейк-код вместо настоящего, такие чаты пропадут из списка и поиска. Настоящий код или Face ID показывают всё. Нужен включённый код-пароль."))
 
     entries.append(.header(id: id.count, section: .chatList, text: "АНТИСПАМ", badge: nil))
     entries.append(.toggle(id: id.count, section: .chatList, settingName: .novaAntiSpam, value: s.novaAntiSpam, text: "Антиспам", enabled: true))
@@ -876,6 +884,11 @@ private func novagramSettingsController(context: AccountContext) -> ViewControll
         setBoolValue: { setting, value in
             let s = SGSimpleSettings.shared
             switch setting {
+            case .novaGhostAll:
+                s.novaGhostRead = value
+                s.novaGhostOnline = value
+                s.novaGhostTyping = value
+                s.novaGhostStories = value
             case .novaGhostRead: s.novaGhostRead = value
             case .novaGhostOnline: s.novaGhostOnline = value
             case .novaGhostTyping: s.novaGhostTyping = value
