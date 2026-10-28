@@ -111,6 +111,17 @@ public func chatMessageGalleryControllerData(
     if message.id.peerId.namespace == Namespaces.Peer.CloudUser && message.id.namespace != Namespaces.Message.Cloud {
         standalone = true
     }
+    // Stogram: сохранённые одноразовые фото/видео (до исправления меток) не входят в список медиа чата —
+    // в общей галерее открывалось соседнее медиа; такие открываем отдельно
+    if !message.containsSecretMedia && !message.tags.contains(.photoOrVideo) {
+        for media in message.media {
+            if media is TelegramMediaImage {
+                standalone = true
+            } else if let file = media as? TelegramMediaFile, file.isVideo, !file.isInstantVideo, !file.isAnimated {
+                standalone = true
+            }
+        }
+    }
     
     var galleryMedia: EngineRawMedia?
     var otherMedia: EngineRawMedia?

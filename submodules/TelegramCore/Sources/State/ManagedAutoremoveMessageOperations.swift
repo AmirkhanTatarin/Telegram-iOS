@@ -91,7 +91,12 @@ func managedAutoremoveMessageOperations(network: Network, postbox: Postbox, isRe
                             if isRemove && !updatedAttributes.contains(where: { $0 is NovaDeletedMessageAttribute }) {
                                 updatedAttributes.append(NovaDeletedMessageAttribute(date: Int32(Date().timeIntervalSince1970)))
                             }
-                            return .update(StoreMessage(id: currentMessage.id, customStableId: nil, globallyUniqueId: currentMessage.globallyUniqueId, groupingKey: currentMessage.groupingKey, threadId: currentMessage.threadId, timestamp: currentMessage.timestamp, flags: StoreMessageFlags(currentMessage.flags), tags: currentMessage.tags, globalTags: currentMessage.globalTags, localTags: currentMessage.localTags, forwardInfo: storeForwardInfo, authorId: currentMessage.author?.id, text: currentMessage.text, attributes: updatedAttributes, media: currentMessage.media))
+                            // Stogram: без таймера медиа становится обычным — вносим его в список медиа чата,
+                            // иначе галерея его не находит и открывает соседнее фото/видео
+                            let (mediaTags, _) = tagsForStoreMessage(incoming: true, attributes: updatedAttributes, media: currentMessage.media, textEntities: nil, isPinned: false)
+                            let mediaTagMask: MessageTags = [.photoOrVideo, .photo, .video, .file, .music, .gif, .voiceOrInstantVideo]
+                            let updatedTags = currentMessage.tags.union(mediaTags.intersection(mediaTagMask))
+                            return .update(StoreMessage(id: currentMessage.id, customStableId: nil, globallyUniqueId: currentMessage.globallyUniqueId, groupingKey: currentMessage.groupingKey, threadId: currentMessage.threadId, timestamp: currentMessage.timestamp, flags: StoreMessageFlags(currentMessage.flags), tags: updatedTags, globalTags: currentMessage.globalTags, localTags: currentMessage.localTags, forwardInfo: storeForwardInfo, authorId: currentMessage.author?.id, text: currentMessage.text, attributes: updatedAttributes, media: currentMessage.media))
                         })
                     } else if let message = transaction.getMessage(entry.messageId) {
                         if message.id.peerId.namespace == Namespaces.Peer.SecretChat || isRemove {
