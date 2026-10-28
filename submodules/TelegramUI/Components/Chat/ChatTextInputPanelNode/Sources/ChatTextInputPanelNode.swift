@@ -1,6 +1,7 @@
 // MARK: Swiftgram
 import TelegramUIPreferences
 import SGSimpleSettings
+import NovaAPI
 import SwiftUI
 import SGInputToolbar
 
@@ -288,7 +289,11 @@ public class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDeleg
     private var commentsButtonDotLayer: RasterizedCompositionImageLayer?
     private var attachmentButtonUnseenIcon: UIImageView?
     public let attachmentButtonDisabledNode: HighlightableButtonNode
-    
+
+    // MARK: PLATON FORK — Gemini "fix my text" button (left of the attachment clip)
+    public let sgGeminiButton = HighlightTrackingButton()
+    private var sgGeminiBusy = false
+
     public var attachmentImageNode: TransformImageNode?
     
     public let searchLayoutClearButton: HighlightTrackingButton
@@ -361,7 +366,7 @@ public class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDeleg
     
     private let hapticFeedback = HapticFeedback()
     
-    // MARK: Swiftgram
+    // MARK: Stogram
     private var sendWithReturnKey: Bool
     private var sendWithReturnKeyDisposable: Disposable?
 //    private var toolbarHostingController: UIViewController? //Any? //  UIHostingController<ChatToolbarView>?
@@ -456,6 +461,27 @@ public class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDeleg
     private var liveMicrophoneButton: ComponentView<Empty>?
     private var settingsButton: ComponentView<Empty>?
     
+    // MARK: PLATON FORK — send the typed text to the Gemini bridge, fix punctuation/errors, replace in field
+    @objc private func sgGeminiFixPressed() {
+        let plain = self.inputTextState.inputText.string.trimmingCharacters(in: .whitespacesAndNewlines)
+        if plain.isEmpty || self.sgGeminiBusy { return }
+        self.sgGeminiBusy = true
+        self.sgGeminiButton.alpha = 0.4
+        self.sgGeminiButton.isEnabled = false
+        // Stogram: our server fixes the text (the same engine as the other AI features).
+        let _ = NovaAPI.ai(mode: "fix", lines: [NovaAPI.ChatLine(from: "", text: plain)], completion: { [weak self] answer in
+            guard let self else { return }
+            self.sgGeminiBusy = false
+            self.sgGeminiButton.alpha = 1.0
+            self.sgGeminiButton.isEnabled = true
+            let corrected = (answer ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            if corrected.isEmpty { return }
+            self.interfaceInteraction?.updateTextInputStateAndMode { current, inputMode in
+                return (ChatTextInputState(inputText: NSAttributedString(string: corrected)), inputMode)
+            }
+        })
+    }
+
     public func insertText(text: NSAttributedString) {
         guard let textInputState = self.presentationInterfaceState?.interfaceState.effectiveInputState else {
             return
@@ -949,7 +975,7 @@ public class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDeleg
             }
         }
         self.attachmentButtonDisabledNode.addTarget(self, action: #selector(self.attachmentButtonPressed), forControlEvents: .touchUpInside)
-        // MARK: Swiftgram
+        // MARK: Stogram
         let longPressGesture = UILongPressGestureRecognizer(target: self, action: #selector(self.attachmentButtonLongPressed(_:)))
         longPressGesture.minimumPressDuration = 1.0
         self.attachmentButton.addGestureRecognizer(longPressGesture)
@@ -1074,7 +1100,12 @@ public class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDeleg
         self.glassBackgroundContainer.contentView.addSubview(self.menuButton.view)
         self.glassBackgroundContainer.contentView.addSubview(self.attachmentButtonBackground)
         self.glassBackgroundContainer.contentView.addSubview(self.attachmentButtonDisabledNode.view)
-        
+
+        // MARK: PLATON FORK — Gemini fix button setup
+        self.sgGeminiButton.setImage(UIImage(systemName: "sparkles"), for: .normal)
+        self.sgGeminiButton.addTarget(self, action: #selector(self.sgGeminiFixPressed), for: .touchUpInside)
+        self.glassBackgroundContainer.contentView.addSubview(self.sgGeminiButton)
+
         self.glassBackgroundContainer.contentView.addSubview(self.startButton.view)
           
         self.glassBackgroundContainer.contentView.addSubview(self.sendActionButtons.view)
@@ -2456,15 +2487,17 @@ public class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDeleg
         let menuButtonHeight: CGFloat = 40.0
         let menuCollapsedButtonWidth: CGFloat = 40.0
         let menuButtonWidth = menuTextSize.width + 47.0
+        // MARK: PLATON FORK — reserve a left slot for the Gemini "fix text" button
+        let sgGeminiSlot: CGFloat = 40.0 + 6.0
         if hasMenuButton {
             let menuButtonSpacing: CGFloat = 6.0
             if menuButtonExpanded {
-                leftMenuInset = menuButtonWidth + menuButtonSpacing
+                leftMenuInset = menuButtonWidth + menuButtonSpacing + sgGeminiSlot
             } else {
-                leftMenuInset = menuCollapsedButtonWidth + menuButtonSpacing
+                leftMenuInset = menuCollapsedButtonWidth + menuButtonSpacing + sgGeminiSlot
             }
         } else {
-            leftMenuInset = 0.0
+            leftMenuInset = sgGeminiSlot
         }
         self.leftMenuInset = leftMenuInset
         
@@ -3588,6 +3621,11 @@ public class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDeleg
 
         let attachmentButtonFrame = CGRect(origin: CGPoint(x: attachmentButtonX, y: textInputFrame.maxY - attachmentPillHeight), size: CGSize(width: 40.0, height: attachmentPillHeight))
         attachmentButtonX += 40.0 + 6.0
+
+        // MARK: PLATON FORK — Gemini fix button sits in the reserved slot left of the clip
+        let sgGeminiButtonFrame = CGRect(origin: CGPoint(x: attachmentButtonFrame.minX - sgGeminiSlot, y: attachmentButtonFrame.maxY - 40.0), size: CGSize(width: 40.0, height: 40.0))
+        self.sgGeminiButton.tintColor = interfaceState.theme.chat.inputPanel.panelControlAccentColor
+        transition.updateFrame(view: self.sgGeminiButton, frame: sgGeminiButtonFrame)
         self.attachmentButtonBackground.update(size: attachmentButtonFrame.size, cornerRadius: 40.0 * 0.5, isDark: interfaceState.theme.overallDarkAppearance, tintColor: defaultGlassTintColor, isInteractive: true, transition: ComponentTransition(transition))
 
         transition.updateFrame(layer: self.attachmentButtonBackground.layer, frame: attachmentButtonFrame)
@@ -5407,7 +5445,7 @@ public class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDeleg
 
         self.updateActivity()
         
-        // MARK: Swiftgram
+        // MARK: Stogram
         if self.sendWithReturnKey && text == "\n" {
             self.sendButtonPressed()
             return false
@@ -5689,7 +5727,7 @@ public class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDeleg
         }
     }
     
-    // MARK: Swiftgram
+    // MARK: Stogram
     @objc func attachmentButtonLongPressed(_ gesture: UILongPressGestureRecognizer) {
         guard gesture.state == .began else { return }
     }
@@ -5989,7 +6027,7 @@ public class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDeleg
 }
 
 
-// MARK: Swiftgram
+// MARK: Stogram
 extension ChatTextInputPanelNode {
     
     func initToolbarIfNeeded(context: AccountContext) {

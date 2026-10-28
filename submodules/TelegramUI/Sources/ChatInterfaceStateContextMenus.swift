@@ -1690,6 +1690,38 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
                     })
                 })
             })))
+            // From Platon: ask the AI about this message, translate it with the AI.
+            let novaMessageText = message.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !novaMessageText.isEmpty {
+                actions.append(.action(ContextMenuActionItem(text: "Спросить ИИ", icon: { theme in
+                    return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Replace"), color: theme.actionSheet.primaryTextColor)
+                }, action: { _, f in
+                    f(.default)
+                    controllerInteraction.displayUndo(.info(title: nil, text: "Спрашиваю ИИ…", timeout: nil, customUndoText: nil))
+                    let _ = NovaAPI.prompt(novaMessageText, completion: { text in
+                        guard let text = text, !text.isEmpty else {
+                            novaShowText("ИИ", "Сервер Stogram не ответил. Попробуйте ещё раз.")
+                            return
+                        }
+                        novaShowSheet("Ответ ИИ", text, false)
+                    })
+                })))
+                actions.append(.action(ContextMenuActionItem(text: "Перевести (ИИ)", icon: { theme in
+                    return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Translate"), color: theme.actionSheet.primaryTextColor)
+                }, action: { _, f in
+                    f(.default)
+                    controllerInteraction.displayUndo(.info(title: nil, text: "Перевожу…", timeout: nil, customUndoText: nil))
+                    let novaLang = Locale.current.languageCode == "ru" ? "английский" : "русский"
+                    let novaTarget = novaMessageText.range(of: "[а-яА-ЯёЁ]", options: .regularExpression) != nil ? novaLang : "русский"
+                    let _ = NovaAPI.ai(mode: "translate", lines: [NovaAPI.ChatLine(from: "", text: novaMessageText)], lang: novaTarget, completion: { text in
+                        guard let text = text, !text.isEmpty else {
+                            novaShowText("Перевод", "Сервер Stogram не ответил. Попробуйте ещё раз.")
+                            return
+                        }
+                        novaShowSheet("Перевод", text, false)
+                    })
+                })))
+            }
         }
 
         // Novagram: previous versions of an edited message.

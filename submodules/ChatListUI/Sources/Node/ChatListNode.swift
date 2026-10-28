@@ -147,7 +147,7 @@ public final class ChatListNodeInteraction {
         animationCache: AnimationCache,
         animationRenderer: MultiAnimationRenderer,
         activateSearch: @escaping () -> Void,
-        // MARK: Swiftgram
+        // MARK: Stogram
         openSGAnnouncement: @escaping (String, String, Bool, Bool) -> Void = { _, _, _, _ in },
         peerSelected: @escaping (EnginePeer, EnginePeer?, Int64?, ChatListNodeEntryPromoInfo?, Bool) -> Void,
         disabledPeerSelected: @escaping (EnginePeer, Int64?, ChatListDisabledPeerReason) -> Void,
@@ -314,6 +314,7 @@ public struct ChatListNodeState: Equatable {
     public var selectedPeerMap: [EnginePeer.Id: EnginePeer]
     public var selectedThreadIds: Set<Int64>
     public var archiveStoryState: StoryState?
+    public var sgDecoyReloadNonce: Int = 0 // MARK: PLATON FORK - bumped to force a rebuild when decoy state flips
     
     public init(
         presentationData: ChatListPresentationData,
@@ -388,6 +389,9 @@ public struct ChatListNodeState: Equatable {
             return false
         }
         if lhs.archiveStoryState != rhs.archiveStoryState {
+            return false
+        }
+        if lhs.sgDecoyReloadNonce != rhs.sgDecoyReloadNonce {
             return false
         }
         return true
@@ -1296,6 +1300,7 @@ public final class ChatListNode: ListViewImpl {
     public private(set) var interaction: ChatListNodeInteraction?
     
     private var dequeuedInitialTransitionOnLayout = false
+    private var sgDecoyObserver: NSObjectProtocol? // MARK: PLATON FORK
     private var enqueuedTransition: (ChatListNodeListViewTransition, () -> Void)?
     
     public private(set) var currentState: ChatListNodeState
@@ -1393,7 +1398,7 @@ public final class ChatListNode: ListViewImpl {
     
     public var startedScrollingAtUpperBound: Bool = false
     
-    // MARK: Swiftgram
+    // MARK: Stogram
     public var getNavigationController: (()-> NavigationController?)?
     
     private let autoSetReady: Bool
@@ -1431,6 +1436,16 @@ public final class ChatListNode: ListViewImpl {
         self.scrollHeightTopInset = ChatListNavigationBar.searchScrollHeight
         
         super.init()
+        
+        // MARK: PLATON FORK - when the decoy (fake-code) state flips at the lock screen, force the chat
+        // list to recompute so hidden chats appear/disappear immediately instead of lagging one unlock.
+        self.sgDecoyObserver = NotificationCenter.default.addObserver(forName: Notification.Name("SGDecoyStateChanged"), object: nil, queue: .main) { [weak self] _ in
+            self?.updateState { state in
+                var state = state
+                state.sgDecoyReloadNonce &+= 1
+                return state
+            }
+        }
         
         if case .internal = context.sharedContext.applicationBindings.appBuildType {
             //self.useMainQueueTransactions = true
@@ -3226,6 +3241,9 @@ public final class ChatListNode: ListViewImpl {
     }
     
     deinit {
+        if let sgDecoyObserver = self.sgDecoyObserver {
+            NotificationCenter.default.removeObserver(sgDecoyObserver)
+        }
         self.chatListDisposable.dispose()
         self.activityStatusesDisposable?.dispose()
         self.updatedFilterDisposable.dispose()

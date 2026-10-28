@@ -4,6 +4,7 @@ import TelegramCore
 import TelegramPresentationData
 import MergeLists
 import AccountContext
+import SGSimpleSettings
 
 enum ChatListNodeEntryId: Hashable {
     case Header
@@ -628,6 +629,10 @@ func chatListNodeEntriesForView(view: EngineChatList, state: ChatListNodeState, 
             if existingPeerIds.contains(contact.peer.id) {
                 continue
             }
+            // MARK: PLATON FORK - decoy: a hidden chat must not reappear as a contact row.
+            if SGSimpleSettings.shared.sgShouldHideChats, SGSimpleSettings.shared.sgIsPeerHidden(contact.peer.id.toInt64()) {
+                continue
+            }
             result.append(.ContactEntry(ChatListNodeEntry.ContactEntryData(
                 presentationData: state.presentationData,
                 peer: contact.peer,
@@ -668,6 +673,10 @@ func chatListNodeEntriesForView(view: EngineChatList, state: ChatListNodeState, 
     var hasPinned = false
     
     loop: for entry in view.items {
+        // MARK: PLATON FORK - decoy: hide selected chats while a fake code unlocked the app.
+        if SGSimpleSettings.shared.sgShouldHideChats, SGSimpleSettings.shared.sgIsPeerHidden(entry.renderedPeer.peerId.toInt64()) {
+            continue loop
+        }
         var peerId: EnginePeer.Id?
         var threadId: Int64?
         var activityItemId: ChatListNodePeerInputActivities.ItemId?

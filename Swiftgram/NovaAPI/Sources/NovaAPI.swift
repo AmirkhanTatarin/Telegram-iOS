@@ -120,6 +120,15 @@ public enum NovaAPI {
         return task
     }
 
+    /// A free-form prompt to the server's model (used by the AI autopilot and "Спросить ИИ").
+    public static func prompt(_ text: String, completion: @escaping (String?) -> Void) -> URLSessionTask? {
+        guard let body = try? JSONSerialization.data(withJSONObject: ["mode": "raw", "prompt": text]) else {
+            completion(nil)
+            return nil
+        }
+        return request(path: "ai", body: body, contentType: "application/json", timeout: 120.0, completion: completion)
+    }
+
     /// Hosts the server can download a video from (TikTok, YouTube, Instagram, X, VK, Reddit, Pinterest).
     private static let videoHosts: [String] = ["tiktok.com", "youtube.com", "youtu.be", "instagram.com", "x.com", "twitter.com", "vk.com", "vkvideo.ru", "reddit.com", "pinterest.com", "pin.it", "rutube.ru", "twitch.tv"]
 

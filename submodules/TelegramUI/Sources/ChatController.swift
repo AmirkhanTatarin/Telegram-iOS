@@ -1,4 +1,5 @@
 import SGSimpleSettings
+import NovaAPI
 import Foundation
 import UIKit
 import Postbox
@@ -585,7 +586,7 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
     var translationStateDisposable: Disposable?
     var premiumGiftSuggestionDisposable: Disposable?
     
-    // MARK: Swiftgram
+    // MARK: Stogram
     private var sgShowHiddenPinnedMessagesObserver: NSObjectProtocol?
     public var overlayTitle: String? {
          var title: String?
@@ -6032,13 +6033,31 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
                                 strongSelf.push(statsController)
                             })))
                         }
+                        // MARK: PLATON FORK — "Общение ИИ" per-chat autopilot toggle (private user chats only, no bots).
+                        if let user = peer as? TelegramUser, user.botInfo == nil, peer.id != context.account.peerId {
+                            let autopilotOn = strongSelf.sgIsAutopilotEnabled(peerId: peer.id)
+                            items.append(.action(ContextMenuActionItem(text: autopilotOn ? "Выключить Общение ИИ" : "Общение ИИ", icon: { theme in
+                                return generateTintedImage(image: UIImage(bundleImageName: autopilotOn ? "Chat/Context Menu/Message" : "Chat/Context Menu/Bots"), color: theme.actionSheet.primaryTextColor)
+                            }, action: { _, f in
+                                f(.dismissWithoutContent)
+                                guard let strongSelf = self else {
+                                    return
+                                }
+                                let newValue = !strongSelf.sgIsAutopilotEnabled(peerId: peer.id)
+                                strongSelf.sgSetAutopilotEnabled(newValue, peerId: peer.id)
+                                let presentationData = strongSelf.presentationData
+                                let text = newValue ? "Общение ИИ включено. ИИ сам отвечает на новые сообщения, важные оставляет тебе." : "Общение ИИ выключено."
+                                strongSelf.present(UndoOverlayController(presentationData: presentationData, content: .info(title: nil, text: text, timeout: 4.0, customUndoText: nil), elevatedLayout: false, position: .top, animateInAsReplacement: false, action: { _ in return false }), in: .current)
+                            })))
+                        }
+
                         items.append(.action(ContextMenuActionItem(text: strongSelf.presentationData.strings.Conversation_Search, icon: { theme in
                             return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Search"), color: theme.actionSheet.primaryTextColor)
                         }, action: { _, f in
                             f(.dismissWithoutContent)
                             self?.interfaceInteraction?.beginMessageSearch(.everything, "")
                         })))
-                                                
+
                         return items
                     }
                 case let .replyThread(message):
@@ -6940,7 +6959,7 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
             })
         }
 
-        // MARK: Swiftgram
+        // MARK: Stogram
         self.sgShowHiddenPinnedMessagesObserver = NotificationCenter.default.addObserver(
             forName: NSNotification.Name("SGShowHiddenPinnedMessages"),
             object: nil,
@@ -7018,8 +7037,27 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
         })
     }
 
+    // MARK: PLATON FORK — auto-delete own messages state
+    private var sgAutoDeleteOwnStarted = false
+    private var sgAutoDeleteOwnDisposable: Disposable?
+
+    // MARK: PLATON FORK — AI autopilot ("Общение ИИ") state
+    private var sgAutopilotStarted = false
+    private var sgAutopilotDisposable: Disposable?
+    private var sgAutopilotRequestDisposable: Disposable?
+    private var sgAutopilotRecheckDisposable: Disposable?
+    private var sgAutopilotLastIncomingId: MessageId?
+    private var sgAutopilotInFlight = false
+    private var sgAutopilotPollTimer: SwiftSignalKit.Timer? // MARK: PLATON FORK - safety-net poll so replies never stall
+    private var sgAutopilotPollTick: Int = 0 // MARK: PLATON FORK - debug heartbeat counter
+
     deinit {
-        // MARK: Swiftgram
+        // MARK: Stogram
+        self.sgAutoDeleteOwnDisposable?.dispose()
+        self.sgAutopilotDisposable?.dispose()
+        self.sgAutopilotRequestDisposable?.dispose()
+        self.sgAutopilotRecheckDisposable?.dispose()
+        self.sgAutopilotPollTimer?.invalidate()
         if let observer = sgShowHiddenPinnedMessagesObserver { NotificationCenter.default.removeObserver(observer) }
         let _ = ChatControllerCount.modify { value in
             return value - 1
@@ -7729,7 +7767,12 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
         super.viewDidAppear(animated)
         
         self.didAppear = true
-        
+
+        // MARK: PLATON FORK — apply AI autopilot state for this chat (attach/detach per current setting).
+        if let autopilotPeerId = self.chatLocation.peerId {
+            self.sgApplyAutopilotState(peerId: autopilotPeerId)
+        }
+
         self.chatDisplayNode.historyNode.experimentalSnapScrollToItem = false
         self.chatDisplayNode.historyNode.canReadHistory.set(self.computedCanReadHistoryPromise.get())
         self.chatDisplayNode.historyNode.areContentAnimationsEnabled = true
@@ -9033,15 +9076,224 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
         return .single(false)
     }
     
+    // MARK: PLATON FORK — auto-delete my own sent messages after a delay (for everyone)
+    private func sgStartAutoDeleteOwnIfNeeded(peerId: PeerId) {
+        guard SGSimpleSettings.shared.autoDeleteOwn, !self.sgAutoDeleteOwnStarted else {
+            return
+        }
+        self.sgAutoDeleteOwnStarted = true
+        let context = self.context
+        let seconds = Double(max(5, Int(SGSimpleSettings.shared.autoDeleteOwnSeconds)))
+        self.sgAutoDeleteOwnDisposable = (context.account.pendingMessageManager.deliveredMessageEvents(peerId: peerId)
+        |> deliverOnMainQueue).startStrict(next: { events in
+            for event in events {
+                if event.isPendingProcessing {
+                    continue
+                }
+                let id = event.id
+                Queue.mainQueue().after(seconds, {
+                    let _ = context.engine.messages.deleteMessagesInteractively(messageIds: [id], type: .forEveryone).startStandalone()
+                })
+            }
+        })
+    }
+
+    // MARK: PLATON FORK — AI autopilot ("Общение ИИ"): auto-reply to new incoming messages, skip important ones.
+    // SAFETY: per-chat opt-in (OFF by default), only replies to messages that arrive AFTER the watcher attaches
+    // (never a backlog), one in-flight request at a time, and every auto-sent reply is logged to the user.
+    func sgStartAutopilotIfNeeded(peerId: PeerId) {
+        guard SGSimpleSettings.shared.aiAutopilotPeers.contains("\(peerId.toInt64())"), !self.sgAutopilotStarted else {
+            return
+        }
+        // Only private chats with real users (never channels, groups, bots, or Saved Messages as a target of others).
+        guard peerId.namespace == Namespaces.Peer.CloudUser, peerId != self.context.account.peerId else {
+            return
+        }
+        self.sgAutopilotStarted = true
+        let context = self.context
+        self.sgAutopilotDisposable = (context.account.postbox.aroundMessageHistoryViewForLocation(.peer(peerId: peerId, threadId: nil), anchor: .upperBound, ignoreMessagesInTimestampRange: nil, ignoreMessageIds: Set(), count: 16, fixedCombinedReadStates: nil, topTaggedMessageIdNamespaces: Set(), tag: nil, appendMessagesFromTheSameGroup: false, namespaces: .not(Namespaces.Message.allNonRegular), orderStatistics: [])
+        |> deliverOnMainQueue).startStrict(next: { [weak self] view, _, _ in
+            guard let self else {
+                return
+            }
+            self.sgAutopilotEvaluate(peerId: peerId, messages: view.entries.map { $0.message })
+        })
+
+        // MARK: PLATON FORK - safety net. The live history subscription above occasionally stops delivering
+        // updates (replies "answer a couple of times then go quiet"). A light repeating poll re-reads the tail
+        // and re-evaluates, so a new incoming message is always picked up within a few seconds. sgAutopilotRecheck
+        // is already guarded (does nothing while a request is in flight or when nothing new arrived).
+        self.sgAutopilotPollTimer?.invalidate()
+        let pollTimer = SwiftSignalKit.Timer(timeout: 4.0, repeat: true, completion: { [weak self] in
+            guard let self else { return }
+            self.sgAutopilotPollTick &+= 1
+            if self.sgAutopilotPollTick % 3 == 0 {
+                self.sgAutopilotDebug("опрос жив #\(self.sgAutopilotPollTick) inFlight=\(self.sgAutopilotInFlight)")
+            }
+            self.sgAutopilotRecheck(peerId: peerId)
+        }, queue: Queue.mainQueue())
+        self.sgAutopilotPollTimer = pollTimer
+        pollTimer.start()
+    }
+
+    // Decide whether to reply to the newest incoming message in `messages`. Called by the live subscription
+    // and by the post-request recheck (so a message that arrived while a request was in flight is never lost).
+    private func sgAutopilotEvaluate(peerId: PeerId, messages: [Message]) {
+        // We only ever track the newest INCOMING message, so our own outgoing replies never move the marker.
+        guard let newestIncoming = messages.last(where: { $0.flags.contains(.Incoming) }) else {
+            return
+        }
+        // First emission establishes the marker: never reply to anything already present.
+        if self.sgAutopilotLastIncomingId == nil {
+            self.sgAutopilotLastIncomingId = newestIncoming.id
+            self.sgAutopilotDebug("baseline #\(newestIncoming.id.id)")
+            return
+        }
+        // Already handled this incoming message.
+        if self.sgAutopilotLastIncomingId == newestIncoming.id {
+            return
+        }
+        if self.sgAutopilotInFlight {
+            self.sgAutopilotDebug("⏳ занят, новое #\(newestIncoming.id.id) ждёт")
+            return
+        }
+        // Never answer messages that predate enabling.
+        let enabledAt = SGSimpleSettings.shared.aiAutopilotPeers["\(peerId.toInt64())"] ?? 0
+        if newestIncoming.timestamp < enabledAt {
+            self.sgAutopilotLastIncomingId = newestIncoming.id
+            return
+        }
+        let text = newestIncoming.text
+        if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            self.sgAutopilotLastIncomingId = newestIncoming.id
+            return
+        }
+        // Build a short transcript for context (oldest -> newest), labelled by direction.
+        var transcript = ""
+        for message in messages.suffix(14) {
+            let mText = message.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            if mText.isEmpty {
+                continue
+            }
+            let who = message.flags.contains(.Incoming) ? "Собеседник" : "Я"
+            transcript += "\(who): \(mText)\n"
+        }
+        self.sgAutopilotDebug("▶ отвечаю на #\(newestIncoming.id.id)")
+        self.sgAutopilotInFlight = true
+        self.sgAutopilotProcess(peerId: peerId, incomingId: newestIncoming.id, transcript: transcript)
+    }
+
+    // One-shot re-read of the chat tail after a request finishes, to catch messages that arrived mid-request.
+    private func sgAutopilotRecheck(peerId: PeerId) {
+        guard self.sgAutopilotStarted, !self.sgAutopilotInFlight else {
+            if self.sgAutopilotStarted && self.sgAutopilotInFlight {
+                self.sgAutopilotDebug("опрос: ещё занят (inFlight завис?)")
+            }
+            return
+        }
+        let context = self.context
+        self.sgAutopilotRecheckDisposable?.dispose()
+        self.sgAutopilotRecheckDisposable = (context.account.postbox.aroundMessageHistoryViewForLocation(.peer(peerId: peerId, threadId: nil), anchor: .upperBound, ignoreMessagesInTimestampRange: nil, ignoreMessageIds: Set(), count: 16, fixedCombinedReadStates: nil, topTaggedMessageIdNamespaces: Set(), tag: nil, appendMessagesFromTheSameGroup: false, namespaces: .not(Namespaces.Message.allNonRegular), orderStatistics: [])
+        |> take(1)
+        |> deliverOnMainQueue).startStrict(next: { [weak self] view, _, _ in
+            guard let self else {
+                return
+            }
+            self.sgAutopilotEvaluate(peerId: peerId, messages: view.entries.map { $0.message })
+        })
+    }
+
+    private func sgAutopilotProcess(peerId: PeerId, incomingId: MessageId, transcript: String) {
+        let context = self.context
+        let prompt = "Ты ведёшь непринуждённую личную переписку в Telegram ОТ МОЕГО ЛИЦА (я — владелец аккаунта). Ниже диалог, последнее сообщение — от собеседника. По умолчанию ОТВЕЧАЙ: поддерживай обычный разговор, болтовню, шутки, бытовые вопросы — как это делаю я.\n\nПропусти ход (ответь РОВНО токеном [[SKIP]] и больше ничем) ТОЛЬКО если сообщение правда требует лично меня: просьба о деньгах/переводе, серьёзная договорённость или решение, явно личное/конфиденциальное или эмоционально тяжёлое. В остальных случаях НЕ пропускай — отвечай.\n\nОтвет пиши коротко, на русском, неформально, в моём стиле (смотри, как пишу «Я» в диалоге), как будто пишу я. Без кавычек, без пояснений и приписок — только сам текст ответа.\n\nДиалог:\n\(transcript)\nОтвет:"
+        // Stogram: the reply comes from our server (NovaAPI), the same engine as the other AI features.
+        let task = NovaAPI.prompt(prompt, completion: { [weak self] answer in
+            guard let self else {
+                return
+            }
+            self.sgAutopilotInFlight = false
+            // Whatever the outcome, do not re-evaluate this message again.
+            self.sgAutopilotLastIncomingId = incomingId
+            let reply = (answer ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            self.sgAutopilotDebug("ответ len=\(reply.count)")
+            // Skip conditions: no answer, or the model flagged the message as important.
+            let shouldSend = !reply.isEmpty && !reply.contains("[[SKIP]]") && reply.uppercased() != "SKIP" && SGSimpleSettings.shared.aiAutopilotPeers.contains("\(peerId.toInt64())")
+            if shouldSend {
+                let message: EnqueueMessage = .message(text: reply, attributes: [], inlineStickers: [:], mediaReference: nil, threadId: nil, replyToMessageId: nil, replyToStoryId: nil, localGroupingKey: nil, correlationId: nil, bubbleUpEmojiOrStickersets: [])
+                let _ = enqueueMessages(account: context.account, peerId: peerId, messages: [message]).startStandalone()
+                self.sgAutopilotLog(reply: reply)
+            }
+            // Always re-check: a new incoming message may have arrived while this request was running.
+            self.sgAutopilotRecheck(peerId: peerId)
+        })
+        self.sgAutopilotRequestDisposable?.dispose()
+        self.sgAutopilotRequestDisposable = ActionDisposable { [weak task] in
+            task?.cancel()
+        }
+    }
+
+    func sgSetAutopilotEnabled(_ enabled: Bool, peerId: PeerId) {
+        let key = "\(peerId.toInt64())"
+        if enabled {
+            SGSimpleSettings.shared.aiAutopilotPeers.set(value: Int32(Date().timeIntervalSince1970), forKey: key)
+        } else {
+            SGSimpleSettings.shared.aiAutopilotPeers.removeValue(forKey: key)
+        }
+        self.sgApplyAutopilotState(peerId: peerId)
+    }
+
+    // Idempotent: attach the watcher if enabled and not already attached, detach it if disabled and attached.
+    // Called from viewDidAppear (handles toggles made from the profile "…" menu) and from the in-chat toggles.
+    func sgApplyAutopilotState(peerId: PeerId) {
+        if self.sgIsAutopilotEnabled(peerId: peerId) {
+            if self.sgAutopilotDisposable == nil {
+                self.sgAutopilotStarted = false
+                self.sgAutopilotLastIncomingId = nil
+                self.sgStartAutopilotIfNeeded(peerId: peerId)
+            }
+        } else {
+            if self.sgAutopilotDisposable != nil || self.sgAutopilotStarted {
+                self.sgAutopilotDisposable?.dispose()
+                self.sgAutopilotDisposable = nil
+                self.sgAutopilotRequestDisposable?.dispose()
+                self.sgAutopilotRequestDisposable = nil
+                self.sgAutopilotRecheckDisposable?.dispose()
+                self.sgAutopilotRecheckDisposable = nil
+                self.sgAutopilotStarted = false
+                self.sgAutopilotLastIncomingId = nil
+                self.sgAutopilotInFlight = false
+                self.sgAutopilotPollTimer?.invalidate()
+                self.sgAutopilotPollTimer = nil
+            }
+        }
+    }
+
+    func sgIsAutopilotEnabled(peerId: PeerId) -> Bool {
+        return SGSimpleSettings.shared.aiAutopilotPeers.contains("\(peerId.toInt64())")
+    }
+
+    private func sgAutopilotLog(reply: String) {
+        let presentationData = self.presentationData
+        let shortened = reply.count > 80 ? String(reply.prefix(80)) + "…" : reply
+        self.present(UndoOverlayController(presentationData: presentationData, content: .info(title: "ИИ ответил", text: shortened, timeout: 4.0, customUndoText: nil), elevatedLayout: false, position: .top, animateInAsReplacement: false, action: { _ in return false }), in: .current)
+    }
+
+    // MARK: PLATON FORK - temporary on-screen diagnostics for the "replies once then stops" bug.
+    // Shows a short toast at each decision branch so we can see exactly where the autopilot stalls.
+    private func sgAutopilotDebug(_ text: String) {
+        NSLog("SG-AUTOPILOT: %@", text)
+    }
+
     func sendMessages(_ messages: [EnqueueMessage], media: Bool = false, postpone: Bool = false, commit: Bool = false) {
         if case let .customChatContents(customChatContents) = self.subject {
             customChatContents.enqueueMessages(messages: messages)
             return
         }
-        
+
         guard let peerId = self.chatLocation.peerId else {
             return
         }
+        self.sgStartAutoDeleteOwnIfNeeded(peerId: peerId)
         
         let _ = (self.shouldDivertMessagesToScheduled(messages: messages)
         |> deliverOnMainQueue).startStandalone(next: { [weak self] shouldDivert in
@@ -10046,7 +10298,7 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
     }
     
     func displayMediaRecordingTooltip() {
-        if ({ return true })() { return } // MARK: Swiftgram
+        if ({ return true })() { return } // MARK: Stogram
         guard let peer = self.presentationInterfaceState.renderedPeer?.peer else {
             return
         }

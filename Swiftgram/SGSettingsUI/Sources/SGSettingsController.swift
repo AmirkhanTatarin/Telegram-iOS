@@ -23,6 +23,7 @@ import AppBundle
 import WebKit
 import PeerNameColorScreen
 import UndoUI
+import PromptUI
 
 
 private enum SGControllerSection: Int32, SGItemListSection {
@@ -48,6 +49,8 @@ private enum SGControllerSection: Int32, SGItemListSection {
 
 private enum SGBoolSetting: String {
     case novaWhisper
+    case hideSponsored
+    case autoDeleteOwn
     case novaHQVideo
     case novaAntiSpam
     case novaSaveSelfDestruct
@@ -140,6 +143,7 @@ private enum SGDisclosureLink: String {
     case contentSettings
     case languageSettings
     case novagram
+    case fakePasscode
 }
 
 private struct PeerNameColorScreenState: Equatable {
@@ -521,6 +525,10 @@ public func sgSettingsController(context: AccountContext/*, focusOnItemTag: Int?
             SGSimpleSettings.shared.novaWhisper = value
         case .novaHQVideo:
             SGSimpleSettings.shared.novaHQVideo = value
+        case .hideSponsored:
+            SGSimpleSettings.shared.hideSponsored = value
+        case .autoDeleteOwn:
+            SGSimpleSettings.shared.autoDeleteOwn = value
         case .novaAntiSpam:
             SGSimpleSettings.shared.novaAntiSpam = value
         case .novaSaveSelfDestruct:
@@ -721,6 +729,8 @@ public func sgSettingsController(context: AccountContext/*, focusOnItemTag: Int?
         switch (link) {
             case .novagram:
                 pushControllerImpl?(novagramSettingsController(context: context))
+            case .fakePasscode:
+                break
             case .languageSettings:
                 pushControllerImpl?(context.sharedContext.makeLocalizationListController(context: context))
             case .contentSettings:
@@ -835,7 +845,13 @@ private func novagramEntries() -> [SGControllerEntry] {
     entries.append(.toggle(id: id.count, section: .other, settingName: .novaEditHistory, value: s.novaEditHistory, text: "История правок", enabled: true))
     entries.append(.toggle(id: id.count, section: .other, settingName: .novaSaveSelfDestruct, value: s.novaSaveSelfDestruct, text: "Не удалять исчезающие", enabled: true))
     entries.append(.toggle(id: id.count, section: .other, settingName: .novaUnlockProtected, value: s.novaUnlockProtected, text: "Сохранение из защищённых", enabled: true))
-    entries.append(.notice(id: id.count, section: .other, text: "Удалённое остаётся в чате с пометкой «удалено». Прошлые версии — в меню сообщения."))
+    entries.append(.toggle(id: id.count, section: .other, settingName: .hideSponsored, value: s.hideSponsored, text: "Скрывать рекламу в каналах", enabled: true))
+    entries.append(.toggle(id: id.count, section: .other, settingName: .autoDeleteOwn, value: s.autoDeleteOwn, text: "Удалять мои сообщения через минуту", enabled: true))
+    entries.append(.notice(id: id.count, section: .other, text: "Удалённое остаётся в чате с пометкой «удалено». Прошлые версии — в меню сообщения. Свои сообщения удаляются у всех через минуту после отправки, пока открыт чат."))
+
+    entries.append(.header(id: id.count, section: .profiles, text: "СКРЫТЫЕ ЧАТЫ", badge: nil))
+    entries.append(.disclosure(id: id.count, section: .profiles, link: .fakePasscode, text: s.sgFakePasscode.isEmpty ? "Фейк-код" : "Фейк-код: задан"))
+    entries.append(.notice(id: id.count, section: .profiles, text: "Сначала включите обычный код-пароль. Чаты скрываются в их меню («Скрыть при фейк-коде»). Если на экране блокировки ввести фейк-код, они пропадут из списка и поиска."))
 
     entries.append(.header(id: id.count, section: .chatList, text: "АНТИСПАМ", badge: nil))
     entries.append(.toggle(id: id.count, section: .chatList, settingName: .novaAntiSpam, value: s.novaAntiSpam, text: "Антиспам", enabled: true))
@@ -854,6 +870,7 @@ private func novagramEntries() -> [SGControllerEntry] {
 
 private func novagramSettingsController(context: AccountContext) -> ViewController {
     let refresh = ValuePromise(true, ignoreRepeated: false)
+    var presentImpl: ((ViewController) -> Void)?
     let arguments = SGItemListArguments<SGBoolSetting, SGSliderSetting, SGOneFromManySetting, SGDisclosureLink, AnyHashable>(
         context: context,
         setBoolValue: { setting, value in
@@ -871,9 +888,35 @@ private func novagramSettingsController(context: AccountContext) -> ViewControll
             case .sendLargePhotos: s.sendLargePhotos = value
             case .novaHQVideo: s.novaHQVideo = value
             case .novaAntiSpam: s.novaAntiSpam = value
+            case .hideSponsored: s.hideSponsored = value
+            case .autoDeleteOwn: s.autoDeleteOwn = value
             default: break
             }
             refresh.set(true)
+        },
+        openDisclosureLink: { link in
+            guard case .fakePasscode = link else {
+                return
+            }
+            // From Platon: the fake code works only on the lock screen, so a real passcode must exist.
+            let _ = (context.sharedContext.accountManager.accessChallengeData()
+            |> take(1)
+            |> deliverOnMainQueue).start(next: { challengeDataView in
+                let presentationData = context.sharedContext.currentPresentationData.with { $0 }
+                if !challengeDataView.data.isLockable {
+                    presentImpl?(textAlertController(context: context, title: "Сначала код-пароль", text: "Включите обычный код-пароль: Настройки → Конфиденциальность → Код-пароль. Без него фейк-код не работает.", actions: [TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {})]))
+                    return
+                }
+                let controller = promptController(context: context, text: "Фейк-код", subtitle: "Введите его на экране блокировки вместо настоящего — скрытые чаты пропадут. Пустое поле выключает фейк-код.", value: SGSimpleSettings.shared.sgFakePasscode, placeholder: "Код", characterLimit: 12, displayCharacterLimit: true, apply: { value in
+                    let trimmed = (value ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                    SGSimpleSettings.shared.sgFakePasscode = trimmed
+                    if trimmed.isEmpty {
+                        SGSimpleSettings.shared.sgDecoyActive = false
+                    }
+                    refresh.set(true)
+                })
+                presentImpl?(controller)
+            })
         }
     )
     let signal = combineLatest(refresh.get(), context.sharedContext.presentationData)
@@ -882,7 +925,11 @@ private func novagramSettingsController(context: AccountContext) -> ViewControll
         let listState = ItemListNodeState(presentationData: ItemListPresentationData(presentationData), entries: novagramEntries(), style: .blocks, ensureVisibleItemTag: nil, initialScrollToItem: nil)
         return (controllerState, (listState, arguments))
     }
-    return ItemListController(context: context, state: signal)
+    let controller = ItemListController(context: context, state: signal)
+    presentImpl = { [weak controller] c in
+        controller?.present(c, in: .window(.root))
+    }
+    return controller
 }
 
 /// Stogram's own features screen, also opened straight from the main Settings list.

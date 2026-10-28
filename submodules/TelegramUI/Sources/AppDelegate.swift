@@ -1,4 +1,4 @@
-// MARK: Swiftgram
+// MARK: Stogram
 import StoreKit
 import SGIAP
 import SGAPI
@@ -426,7 +426,7 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         }
         self.window = window
         self.nativeWindow = window
-        // MARK: Swiftgram
+        // MARK: Stogram
         if sgHardReset(present: self.mainWindow?.presentNative, beforePresent: { self.window?.makeKeyAndVisible() }) {
             return true
         }
@@ -547,7 +547,15 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         
         let baseAppBundleId = Bundle.main.bundleIdentifier!
         let appGroupName = sgAppGroupIdentifier()
-        let maybeAppGroupUrl = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupName)
+        // PLATON FORK: free personal team cannot provision App Groups. Fall back
+        // to the app's own sandbox container so data lives locally (no sharing
+        // with extensions, which are disabled in this build anyway).
+        var maybeAppGroupUrl = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupName)
+        if maybeAppGroupUrl == nil {
+            let fallback = (FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library")).appendingPathComponent("AppGroupFallback")
+            try? FileManager.default.createDirectory(at: fallback, withIntermediateDirectories: true, attributes: nil)
+            maybeAppGroupUrl = fallback
+        }
         
         let buildConfig = BuildConfig(baseAppBundleId: baseAppBundleId)
         self.buildConfig = buildConfig
@@ -985,7 +993,7 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
                 icons.append(PresentationAppIcon(name: "PremiumBlack", imageName: "PremiumBlack", isPremium: true))
                 
                 
-                // MARK: Swiftgram
+                // MARK: Stogram
                 icons = [
                     PresentationAppIcon(name: "SGDefault", imageName: "SGDefault", isDefault: true),
                     PresentationAppIcon(name: "SGBlack", imageName: "SGBlack"),
@@ -1409,7 +1417,7 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
                     
                     self.resetIntentsIfNeeded(context: context.context)
                     
-                    // MARK: Swiftgram
+                    // MARK: Stogram
                     updateSGWebSettingsInteractivelly(context: context.context)
                     updateSGGHSettingsInteractivelly(context: context.context)
                     let _ = (context.context.sharedContext.presentationData.start(next: { presentationData in
@@ -1494,7 +1502,7 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         }))
         
         
-        // MARK: Swiftgram
+        // MARK: Stogram
         if #available(iOS 13.0, *) {
             self.setupIAP()
         }
@@ -2065,7 +2073,7 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
              |> take(1)
              |> deliverOnMainQueue).start(next: { activeAccounts in
                 for (_, context, _) in activeAccounts.accounts {
-                    // MARK: Swiftgram
+                    // MARK: Stogram
                     if !sgTasksLaunched {
                         updateSGWebSettingsInteractivelly(context: context)
                         updateSGGHSettingsInteractivelly(context: context)
@@ -3406,7 +3414,7 @@ final class UpdateSettings: Codable, Equatable {
     }
 }
 
-// MARK: Swiftgram
+// MARK: Stogram
 @available(iOS 13.0, *)
 extension AppDelegate {
 
@@ -3521,7 +3529,7 @@ extension AppDelegate {
             SGLogger.shared.log("SGIAP", "Asking user id \(userId) to keep connection: true")
             primaryContext.account.network.shouldKeepConnection.set(.single(true))
         }
-        // MARK: Swiftgram
+        // MARK: Stogram
         let sgIqtpQueryString = makeIqtpQuery("s")
         //
         let iqtpResponse = try? await sgIqtpQuery(engine: primaryContext.engine, query: sgIqtpQueryString).awaitable()

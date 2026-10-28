@@ -7,6 +7,7 @@ import SwiftSignalKit
 import TelegramPresentationData
 import PresentationDataUtils
 import AccountContext
+import SGSimpleSettings
 import MergeLists
 import ItemListUI
 import ContextUI
@@ -468,6 +469,24 @@ public enum ChatListSearchEntry: Comparable, Identifiable {
     case messagePlaceholder(Int32, ChatListPresentationData, TelegramSearchPeersScope)
     case emptyMessagesFooter(ChatListPresentationData, TelegramSearchPeersScope, String?)
     case addContact(String, PresentationTheme, PresentationStrings)
+
+    // MARK: PLATON FORK - decoy: main peer id of a search result, for hiding hidden chats.
+    var sgHiddenPeerId: Int64? {
+        switch self {
+        case let .topic(peer, _, _, _, _, _):
+            return peer.id.toInt64()
+        case let .recentlySearchedPeer(peer, _, _, _, _, _, _, _, _, _):
+            return peer.id.toInt64()
+        case let .localPeer(peer, _, _, _, _, _, _, _, _, _, _, _):
+            return peer.id.toInt64()
+        case let .globalPeer(foundPeer, _, _, _, _, _, _, _, _, _, _):
+            return foundPeer.peer.id.toInt64()
+        case let .message(_, renderedPeer, _, _, _, _, _, _, _, _, _, _, _, _, _):
+            return renderedPeer.peerId.toInt64()
+        default:
+            return nil
+        }
+    }
 
     public var stableId: ChatListSearchEntryStableId {
         switch self {
@@ -3906,6 +3925,15 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                 let previousAdsHidden = previousAdsHidden.swap(strongSelf.adsHidden)
 
                 var entriesAndFlags = foundItems?.0
+                // MARK: PLATON FORK - decoy: strip hidden chats from every search result (peers + messages).
+                if SGSimpleSettings.shared.sgShouldHideChats {
+                    entriesAndFlags = entriesAndFlags?.filter { entry in
+                        if let pid = entry.sgHiddenPeerId, SGSimpleSettings.shared.sgIsPeerHidden(pid) {
+                            return false
+                        }
+                        return true
+                    }
+                }
 
                 let isSearching = foundItems?.1 ?? false
                 let currentQuery = foundItems?.2
@@ -4442,7 +4470,7 @@ final class ChatListSearchListPaneNode: ASDisplayNode, ChatListSearchPaneNode {
                     var existingIds = Set<PeerId>()
 
                     
-                    // MARK: Swiftgram
+                    // MARK: Stogram
                     // Hidding SwiftgramBot from recents so it won't annoy people. Ideally we should call removeRecentlyUsedApp, so it won't annoy users in other apps
                     let skipId = 5846791198
                     

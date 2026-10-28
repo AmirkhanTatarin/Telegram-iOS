@@ -5,6 +5,7 @@ import AccountContext
 import SwiftSignalKit
 import TelegramCore
 import UndoUI
+import SGSimpleSettings
 import ContextUI
 import TelegramPresentationData
 import NotificationPeerExceptionController
@@ -557,12 +558,34 @@ extension PeerInfoScreenNode {
                                 generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Lock"), color: theme.contextMenu.primaryColor)
                             }, action: { _, f in
                                 f(.dismissWithoutContent)
-                                
+
                                 self?.openStartSecretChat()
                             })))
                         }
                     }
-                    
+
+                    // MARK: PLATON FORK — "Общение ИИ" per-chat autopilot toggle (private user chats only, no bots).
+                    if strongSelf.peerId.namespace == Namespaces.Peer.CloudUser && user.botInfo == nil && strongSelf.peerId != strongSelf.context.account.peerId {
+                        let sgAutopilotOn = SGSimpleSettings.shared.aiAutopilotPeers.contains("\(strongSelf.peerId.toInt64())")
+                        items.append(.action(ContextMenuActionItem(text: sgAutopilotOn ? "Выключить Общение ИИ" : "Общение ИИ", icon: { theme in
+                            generateTintedImage(image: UIImage(bundleImageName: sgAutopilotOn ? "Chat/Context Menu/Message" : "Chat/Context Menu/Bots"), color: theme.contextMenu.primaryColor)
+                        }, action: { [weak self] _, f in
+                            f(.dismissWithoutContent)
+                            guard let strongSelf = self else {
+                                return
+                            }
+                            let key = "\(strongSelf.peerId.toInt64())"
+                            let newValue = !SGSimpleSettings.shared.aiAutopilotPeers.contains(key)
+                            if newValue {
+                                SGSimpleSettings.shared.aiAutopilotPeers.set(value: Int32(Date().timeIntervalSince1970), forKey: key)
+                            } else {
+                                SGSimpleSettings.shared.aiAutopilotPeers.removeValue(forKey: key)
+                            }
+                            let text = newValue ? "Общение ИИ включено. Вернись в чат — ИИ сам ответит на новые сообщения, важные оставит тебе." : "Общение ИИ выключено."
+                            strongSelf.controller?.present(UndoOverlayController(presentationData: strongSelf.presentationData, content: .info(title: nil, text: text, timeout: 4.0, customUndoText: nil), elevatedLayout: false, animateInAsReplacement: false, action: { _ in return false }), in: .current)
+                        })))
+                    }
+
                     if user.botInfo == nil && data.isContact, case let .user(peer) = strongSelf.data?.peer, let phone = peer.phone {
                         items.append(.action(ContextMenuActionItem(text: presentationData.strings.Profile_ShareContactButton, icon: { theme in
                             generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Forward"), color: theme.contextMenu.primaryColor)
@@ -973,7 +996,7 @@ extension PeerInfoScreenNode {
                                 }
                             })
                         })))
-                    // MARK: Swiftgram
+                    // MARK: Stogram
                     } else {
                         items.append(.action(ContextMenuActionItem(text: presentationData.strings.Group_Info_AdminLog, icon: { theme in
                             generateTintedImage(image: UIImage(bundleImageName: "Peer Info/RefProgram/IntroListEye"), color: theme.contextMenu.primaryColor)

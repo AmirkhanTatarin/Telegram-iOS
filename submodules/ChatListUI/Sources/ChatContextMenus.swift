@@ -3,6 +3,7 @@ import UIKit
 import SwiftSignalKit
 import ContextUI
 import AccountContext
+import SGSimpleSettings
 import TelegramCore
 import Display
 import TelegramUIPreferences
@@ -138,6 +139,20 @@ func chatContextMenuItems(context: AccountContext, peerId: EnginePeer.Id, promoI
                     }
 
                     var items: [ContextMenuItem] = []
+
+                    // MARK: PLATON FORK - decoy: toggle a chat as hidden (invisible when a fake code unlocked the app).
+                    do {
+                        let hiddenKey = String(peerId.toInt64())
+                        let isHidden = SGSimpleSettings.shared.sgHiddenPeers[hiddenKey] != nil
+                        items.append(.action(ContextMenuActionItem(text: isHidden ? "Показать чат" : "Скрыть чат (фейк-код)", icon: { theme in generateTintedImage(image: UIImage(bundleImageName: isHidden ? "Chat/Context Menu/Unmute" : "Chat/Context Menu/Mute"), color: theme.contextMenu.primaryColor) }, action: { _, f in
+                            if isHidden {
+                                _ = SGSimpleSettings.shared.sgHiddenPeers.removeValue(forKey: hiddenKey)
+                            } else {
+                                SGSimpleSettings.shared.sgHiddenPeers.set(value: 1, forKey: hiddenKey)
+                            }
+                            f(.default)
+                        })))
+                    }
 
                     if case let .search(search) = source {
                         switch search {
@@ -381,7 +396,7 @@ func chatContextMenuItems(context: AccountContext, peerId: EnginePeer.Id, promoI
                             }
                         }
                         
-                        let archiveEnabled = !isSavedMessages && peerId != EnginePeer.Id(namespace: Namespaces.Peer.CloudUser, id: EnginePeer.Id.Id._internalFromInt64Value(777000)) /* && peerId == context.account.peerId // MARK: Swiftgram */
+                        let archiveEnabled = !isSavedMessages && peerId != EnginePeer.Id(namespace: Namespaces.Peer.CloudUser, id: EnginePeer.Id.Id._internalFromInt64Value(777000)) /* && peerId == context.account.peerId // MARK: Stogram */
                         if let group = peerGroup {
                             if archiveEnabled {
                                 let isArchived = group == .archive

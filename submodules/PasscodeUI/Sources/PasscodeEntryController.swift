@@ -1,6 +1,7 @@
 import Foundation
 import UIKit
 import Display
+import SGSimpleSettings
 import AsyncDisplayKit
 import SwiftSignalKit
 import TelegramCore
@@ -145,6 +146,15 @@ public final class PasscodeEntryController: ViewController {
                 return
             }
     
+            // Stogram (from Platon): a separate fake code unlocks the app with the hidden chats kept hidden.
+            let fakeCode = SGSimpleSettings.shared.sgFakePasscode
+            if strongSelf.completed == nil, !fakeCode.isEmpty, passcode == fakeCode {
+                SGSimpleSettings.shared.sgDecoyActive = true
+                NotificationCenter.default.post(name: Notification.Name("SGDecoyStateChanged"), object: nil)
+                strongSelf.appLockContext.unlock()
+                return
+            }
+
             var succeed = false
             switch strongSelf.challengeData {
                 case .none:
@@ -156,6 +166,11 @@ public final class PasscodeEntryController: ViewController {
             }
             
             if succeed {
+                // The real code always leaves the decoy mode.
+                if SGSimpleSettings.shared.sgDecoyActive {
+                    SGSimpleSettings.shared.sgDecoyActive = false
+                    NotificationCenter.default.post(name: Notification.Name("SGDecoyStateChanged"), object: nil)
+                }
                 if let completed = strongSelf.completed {
                     completed()
                 } else {
@@ -248,6 +263,11 @@ public final class PasscodeEntryController: ViewController {
             
             if result {
                 strongSelf.controllerNode.animateSuccess()
+                // Face ID / Touch ID is the owner: show every chat.
+                if SGSimpleSettings.shared.sgDecoyActive {
+                    SGSimpleSettings.shared.sgDecoyActive = false
+                    NotificationCenter.default.post(name: Notification.Name("SGDecoyStateChanged"), object: nil)
+                }
                 
                 if let completed = strongSelf.completed {
                     Queue.mainQueue().after(1.5) {

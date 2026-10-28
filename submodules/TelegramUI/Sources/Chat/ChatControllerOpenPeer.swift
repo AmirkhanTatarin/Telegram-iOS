@@ -361,9 +361,27 @@ extension ChatControllerImpl {
             return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Search"), color: theme.contextMenu.primaryColor)
         }, action: { [weak self] action in
             action.dismissWithResult(.default)
-            
+
             self?.beginMessageSearch("")
         })))
+
+        // MARK: PLATON FORK — "Общение ИИ" per-chat autopilot toggle (private user chats only, no bots).
+        if self.chatLocation.threadId == nil, let user = self.presentationInterfaceState.renderedPeer?.chatMainPeer as? TelegramUser, user.botInfo == nil, peerId != self.context.account.peerId {
+            let autopilotOn = self.sgIsAutopilotEnabled(peerId: peerId)
+            items.append(.action(ContextMenuActionItem(text: autopilotOn ? "Выключить Общение ИИ" : "Общение ИИ", icon: { theme in
+                return generateTintedImage(image: UIImage(bundleImageName: autopilotOn ? "Chat/Context Menu/Message" : "Chat/Context Menu/Bots"), color: theme.contextMenu.primaryColor)
+            }, action: { [weak self] action in
+                action.dismissWithResult(.default)
+                guard let self else {
+                    return
+                }
+                let newValue = !self.sgIsAutopilotEnabled(peerId: peerId)
+                self.sgSetAutopilotEnabled(newValue, peerId: peerId)
+                let presentationData = self.presentationData
+                let text = newValue ? "Общение ИИ включено. ИИ сам отвечает на новые сообщения, важные оставляет тебе." : "Общение ИИ выключено."
+                self.present(UndoOverlayController(presentationData: presentationData, content: .info(title: nil, text: text, timeout: 4.0, customUndoText: nil), elevatedLayout: false, position: .top, animateInAsReplacement: false, action: { _ in return false }), in: .current)
+            })))
+        }
         
         if let threadId = self.chatLocation.threadId, let peer = self.presentationInterfaceState.renderedPeer?.chatMainPeer, (peer is TelegramChannel || peer is TelegramGroup) {
             items.append(.action(ContextMenuActionItem(text: strings.CreateTopic_EditTitle, icon: { theme in

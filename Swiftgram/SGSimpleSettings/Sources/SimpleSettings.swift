@@ -111,6 +111,13 @@ public class SGSimpleSettings {
         case quickTranslateButton
         case outgoingLanguageTranslation
         case hideReactions
+        case hideSponsored // MARK: PLATON FORK
+        case autoDeleteOwn // MARK: PLATON FORK
+        case autoDeleteOwnSeconds // MARK: PLATON FORK
+        case aiAutopilotPeers // MARK: PLATON FORK
+        case sgFakePasscode // MARK: PLATON FORK - decoy passcode
+        case sgHiddenPeers // MARK: PLATON FORK - hidden chats
+        case sgDecoyActive // MARK: PLATON FORK - runtime decoy state
         case showRepostToStory
         case showRepostToStoryV2
         case contextShowSelectFromUser
@@ -281,6 +288,13 @@ public class SGSimpleSettings {
         Keys.quickTranslateButton.rawValue: false,
         Keys.outgoingLanguageTranslation.rawValue: [:],
         Keys.hideReactions.rawValue: false,
+        Keys.hideSponsored.rawValue: false,
+        Keys.autoDeleteOwn.rawValue: false,
+        Keys.autoDeleteOwnSeconds.rawValue: 60,
+        Keys.aiAutopilotPeers.rawValue: [:],
+        Keys.sgFakePasscode.rawValue: "",
+        Keys.sgHiddenPeers.rawValue: [:],
+        Keys.sgDecoyActive.rawValue: false,
         Keys.showRepostToStory.rawValue: true,
         Keys.contextShowSelectFromUser.rawValue: true,
         Keys.contextShowSaveToCloud.rawValue: true,
@@ -424,6 +438,42 @@ public class SGSimpleSettings {
     
     @UserDefault(key: Keys.hideReactions.rawValue)
     public var hideReactions: Bool
+
+
+
+    // MARK: PLATON FORK - hide sponsored (ad) messages in channels
+    @UserDefault(key: Keys.hideSponsored.rawValue)
+    public var hideSponsored: Bool
+
+
+
+    // MARK: PLATON FORK - auto-delete my own sent messages after a delay (for everyone)
+    @UserDefault(key: Keys.autoDeleteOwn.rawValue)
+    public var autoDeleteOwn: Bool
+
+    @UserDefault(key: Keys.autoDeleteOwnSeconds.rawValue)
+    public var autoDeleteOwnSeconds: Int32
+
+    // MARK: PLATON FORK - per-chat AI autopilot (peerId -> enabledAt unix seconds)
+    public var aiAutopilotPeers = UserDefaultsBackedDictionary<String, Int32>(userDefaultsKey: Keys.aiAutopilotPeers.rawValue, threadSafe: true)
+
+    // MARK: PLATON FORK - decoy passcode + hidden chats (fake code hides selected chats)
+    @UserDefault(key: Keys.sgFakePasscode.rawValue)
+    public var sgFakePasscode: String
+
+    public var sgHiddenPeers = UserDefaultsBackedDictionary<String, Int32>(userDefaultsKey: Keys.sgHiddenPeers.rawValue, threadSafe: true)
+
+    @UserDefault(key: Keys.sgDecoyActive.rawValue)
+    public var sgDecoyActive: Bool
+
+    // True when the current session should hide the hidden chats (decoy unlocked, and at least one hidden chat exists).
+    public var sgShouldHideChats: Bool {
+        return self.sgDecoyActive && !self.sgHiddenPeers.isEmpty
+    }
+
+    public func sgIsPeerHidden(_ peerId: Int64) -> Bool {
+        return self.sgHiddenPeers[String(peerId)] != nil
+    }
 
     // @available(*, deprecated, message: "Use showRepostToStoryV2 instead")
     @UserDefault(key: Keys.showRepostToStory.rawValue)
