@@ -2,7 +2,8 @@
   "images" : [
     {
       "idiom" : "universal",
-      "filename" : "swiftgram_context_menu.pdf"
+      "filename" : "stogram_context_menu.png",
+      "scale" : "3x"
     }
   ],
   "info" : {
