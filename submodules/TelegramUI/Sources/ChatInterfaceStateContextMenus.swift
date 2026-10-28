@@ -1623,19 +1623,55 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
                     ]
                 ), nil)
             }
+            // Stogram: результат ИИ — в выдвижной панели снизу, а не в системном окне
+            let novaShowSheet: (String, String, Bool) -> Void = { title, text, canInsert in
+                let presentationData = context.sharedContext.currentPresentationData.with { $0 }
+                let actionSheet = ActionSheetController(presentationData: presentationData)
+                var items: [ActionSheetItem] = [NovaTextSheetItem(title: title, text: text)]
+                if canInsert {
+                    items.append(ActionSheetButtonItem(title: "Вставить в поле", color: .accent, font: .bold, action: { [weak actionSheet] in
+                        actionSheet?.dismissAnimated()
+                        if let chatController = interfaceInteraction.chatController() as? ChatControllerImpl {
+                            chatController.updateChatPresentationInterfaceState(animated: true, interactive: true, { state in
+                                return state.updatedInterfaceState { interfaceState in
+                                    return interfaceState.withUpdatedEffectiveInputState(ChatTextInputState(inputText: NSAttributedString(string: text)))
+                                }
+                            })
+                            chatController.chatDisplayNode.ensureInputViewFocused()
+                        } else {
+                            interfaceInteraction.updateTextInputStateAndMode { _, inputMode in
+                                return (ChatTextInputState(inputText: NSAttributedString(string: text)), inputMode)
+                            }
+                        }
+                    }))
+                }
+                items.append(ActionSheetButtonItem(title: "Скопировать", color: .accent, action: { [weak actionSheet] in
+                    actionSheet?.dismissAnimated()
+                    UIPasteboard.general.string = text
+                    controllerInteraction.displayUndo(.copy(text: "Скопировано"))
+                }))
+                actionSheet.setItemGroups([
+                    ActionSheetItemGroup(items: items),
+                    ActionSheetItemGroup(items: [
+                        ActionSheetButtonItem(title: presentationData.strings.Common_Cancel, color: .accent, action: { [weak actionSheet] in
+                            actionSheet?.dismissAnimated()
+                        })
+                    ])
+                ])
+                controllerInteraction.presentController(actionSheet, nil)
+            }
             actions.append(.action(ContextMenuActionItem(text: "Ответить с ИИ", icon: { theme in
                 return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Reply"), color: theme.actionSheet.primaryTextColor)
             }, action: { _, f in
                 f(.default)
+                controllerInteraction.displayUndo(.info(title: nil, text: "Пишу ответ…", timeout: nil, customUndoText: nil))
                 novaCollectLines({ lines in
                     let _ = NovaAPI.ai(mode: "reply", lines: lines, completion: { text in
                         guard let text = text, !text.isEmpty else {
                             novaShowText("ИИ", "Сервер Stogram не ответил. Попробуйте ещё раз.")
                             return
                         }
-                        interfaceInteraction.updateTextInputStateAndMode { _, inputMode in
-                            return (ChatTextInputState(inputText: NSAttributedString(string: text)), inputMode)
-                        }
+                        novaShowSheet("Ответ ИИ", text, true)
                     })
                 })
             })))
@@ -1643,9 +1679,14 @@ func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState
                 return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Info"), color: theme.actionSheet.primaryTextColor)
             }, action: { _, f in
                 f(.default)
+                controllerInteraction.displayUndo(.info(title: nil, text: "Готовлю сводку…", timeout: nil, customUndoText: nil))
                 novaCollectLines({ lines in
                     let _ = NovaAPI.ai(mode: "summary", lines: lines, completion: { text in
-                        novaShowText("Сводка чата", text ?? "Сервер Stogram не ответил. Попробуйте ещё раз.")
+                        guard let text = text, !text.isEmpty else {
+                            novaShowText("Сводка чата", "Сервер Stogram не ответил. Попробуйте ещё раз.")
+                            return
+                        }
+                        novaShowSheet("Сводка чата", text, false)
                     })
                 })
             })))
