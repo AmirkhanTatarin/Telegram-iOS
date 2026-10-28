@@ -937,6 +937,11 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
                 }
             })
         }, requestSiriAuthorization: { completion in
+            // Stogram: without the Siri entitlement (a free Apple ID) this call kills the app.
+            if !buildConfig.isSiriEnabled {
+                completion(false)
+                return
+            }
             if #available(iOS 10, *) {
                 INPreferences.requestSiriAuthorization { status in
                     if case .authorized = status {

@@ -53,6 +53,8 @@ jobs:
           # в купленном профиле нет iCloud-контейнера: CKContainer.default() роняет приложение,
           # когда Telegram ищет запасные адреса (а в РФ ищет почти сразу)
           c["enable_icloud"] = False
+          # бесплатный Apple ID (Платон) не даёт права на Siri: с ним iOS роняет приложение на первом же вопросе о Siri
+          c["enable_siri"] = False
           if os.environ.get("TG_API_ID"):
               c["api_id"] = os.environ["TG_API_ID"]
               c["api_hash"] = os.environ["TG_API_HASH"]
