@@ -223,7 +223,8 @@ func _internal_fetchPromoInfo(accountPeerId: EnginePeer.Id, postbox: Postbox, ne
                 }
                 
                 var additionalChatListItems: [AdditionalChatListItem] = []
-                if let kind, let peer, let parsedPeer = transaction.getPeer(peer.peerId) {
+                // Stogram: no "proxy sponsor" channel pinned on top of the chat list.
+                if let kind, kind != .proxy, let peer, let parsedPeer = transaction.getPeer(peer.peerId) {
                     additionalChatListItems.append(PromoChatListItem(peerId: parsedPeer.id, kind: kind))
                 }
                 transaction.replaceAdditionalChatListItems(additionalChatListItems)
