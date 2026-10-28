@@ -33,6 +33,7 @@ jobs:
           TG_API_ID: ${{ secrets.TG_API_ID }}
           TG_API_HASH: ${{ secrets.TG_API_HASH }}
           NOVA_API_KEY: ${{ secrets.NOVA_API_KEY }}
+          STOGRAM_PROXY: ${{ secrets.STOGRAM_PROXY }}
         run: |
           set -x
           cd /Users/Shared/telegram-ios
@@ -47,6 +48,7 @@ jobs:
               "iaps": [],
               "nova_api_url": "https://novastream.club/novagram/",
               "nova_api_key": os.environ.get("NOVA_API_KEY", ""),
+              "stogram_proxy": os.environ.get("STOGRAM_PROXY", ""),
           }, separators=(",", ":"))  # без пробелов: строка уходит в флаги компилятора, пробел рвёт её на аргументы
           # в купленном профиле нет iCloud-контейнера: CKContainer.default() роняет приложение,
           # когда Telegram ищет запасные адреса (а в РФ ищет почти сразу)

@@ -11,6 +11,8 @@ import SGAPIWebSettings
 import SGLogging
 import SGStrings
 import SGSimpleSettings
+import SGConfig
+import MtProtoKit
 import SGAppGroupIdentifier
 import UIKit
 import SwiftSignalKit
@@ -1062,6 +1064,28 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         
         let accountManager = AccountManager<TelegramAccountManagerTypes>(basePath: rootPath + "/accounts-metadata", isTemporary: false, isReadOnly: false, useCaches: true, removeDatabaseOnError: true)
         self.accountManager = accountManager
+
+        // Stogram: our proxy is added and turned on once, so Telegram connects without a VPN.
+        // It stays in Settings → Data and Storage → Proxy, where it can be switched off.
+        let stogramProxyKey = "stogramProxyInstalled"
+        if !UserDefaults.standard.bool(forKey: stogramProxyKey), let raw = SG_CONFIG.stogramProxy {
+            let parts = raw.split(separator: ":").map(String.init)
+            if parts.count == 3, let port = Int32(parts[1]), let secret = MTProxySecret.parse(parts[2]) {
+                let server = ProxyServerSettings(host: parts[0], port: port, connection: .mtp(secret: secret.serialize()))
+                UserDefaults.standard.set(true, forKey: stogramProxyKey)
+                let _ = updateProxySettingsInteractively(accountManager: accountManager, { settings in
+                    var settings = settings
+                    if !settings.servers.contains(server) {
+                        settings.servers.insert(server, at: 0)
+                    }
+                    if settings.activeServer == nil || !settings.enabled {
+                        settings.activeServer = server
+                        settings.enabled = true
+                    }
+                    return settings
+                }).start()
+            }
+        }
 
         telegramUIDeclareEncodables()
         initializeAccountManagement()

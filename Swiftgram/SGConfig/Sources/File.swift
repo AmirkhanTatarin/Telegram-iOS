@@ -10,6 +10,8 @@ public struct SGConfig: Codable {
     // Novagram server, filled from repository secrets at build time.
     public var novaApiUrl: String?
     public var novaApiKey: String?
+    // Stogram built-in proxy "host:port:secret", so Telegram works without a VPN.
+    public var stogramProxy: String?
 }
 
 private func parseSGConfig(_ jsonString: String) -> SGConfig {
