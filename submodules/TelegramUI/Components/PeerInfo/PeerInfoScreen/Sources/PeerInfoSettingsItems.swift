@@ -1,3 +1,4 @@
+import SGSimpleSettings
 import Foundation
 import UIKit
 import Display
@@ -179,7 +180,8 @@ func settingsItems(showProfileId: Bool, data: PeerInfoScreenData?, context: Acco
             interaction.openSettings(.profile)
         }))
         
-        if !settings.proxySettings.servers.isEmpty {
+        // Stogram: our proxy works quietly — its row lives in Stogram → Прокси, not here.
+        if !settings.proxySettings.servers.isEmpty && !SGSimpleSettings.shared.stogramProxyAuto {
             let proxyType: String
             if settings.proxySettings.enabled, let activeServer = settings.proxySettings.activeServer {
                 switch activeServer.connection {
