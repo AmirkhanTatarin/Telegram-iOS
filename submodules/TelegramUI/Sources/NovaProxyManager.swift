@@ -31,15 +31,38 @@ final class NovaProxyManager {
             self?.settings = settings
         })
 
-        let timer = SwiftSignalKit.Timer(timeout: 120.0, repeat: true, completion: { [weak self] in
+        // Measure rarely: once after launch, when the connection hangs, and at most every 15 minutes otherwise.
+        // Pinging many proxies at once opened and closed dozens of sockets and crashed CFNetwork on iOS 27.
+        let timer = SwiftSignalKit.Timer(timeout: 15.0 * 60.0, repeat: true, completion: { [weak self] in
             self?.measure()
         }, queue: Queue.mainQueue())
         self.timer = timer
         timer.start()
         self.activeObserver = NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main, using: { [weak self] _ in
-            self?.measure()
+            guard let self, CFAbsoluteTimeGetCurrent() - self.lastMeasure > 5.0 * 60.0 else {
+                return
+            }
+            self.measure()
         })
-        Queue.mainQueue().after(2.0, { [weak self] in
+        self.connectionDisposable = (context.account.network.connectionStatus
+        |> deliverOnMainQueue).start(next: { [weak self] status in
+            guard let self else {
+                return
+            }
+            self.stuckTimer?.invalidate()
+            self.stuckTimer = nil
+            if case .connecting = status {
+                let stuckTimer = SwiftSignalKit.Timer(timeout: 10.0, repeat: false, completion: { [weak self] in
+                    guard let self, CFAbsoluteTimeGetCurrent() - self.lastMeasure > 30.0 else {
+                        return
+                    }
+                    self.measure()
+                }, queue: Queue.mainQueue())
+                self.stuckTimer = stuckTimer
+                stuckTimer.start()
+            }
+        })
+        Queue.mainQueue().after(3.0, { [weak self] in
             self?.measure()
         })
     }
@@ -47,6 +70,8 @@ final class NovaProxyManager {
     deinit {
         self.statusesDisposable.dispose()
         self.settingsDisposable?.dispose()
+        self.connectionDisposable?.dispose()
+        self.stuckTimer?.invalidate()
         self.timer?.invalidate()
         if let activeObserver = self.activeObserver {
             NotificationCenter.default.removeObserver(activeObserver)
@@ -61,6 +86,9 @@ final class NovaProxyManager {
     }
 
     private var lastListRefresh: Double = 0.0
+    private var lastMeasure: Double = 0.0
+    private var connectionDisposable: Disposable?
+    private var stuckTimer: SwiftSignalKit.Timer?
 
     private func measure() {
         guard SGSimpleSettings.shared.stogramProxyAuto else {
@@ -76,10 +104,19 @@ final class NovaProxyManager {
                 }
             })
         }
-        let servers = StogramProxy.candidates
+        // Few candidates: the 6 freshest public ones and ours.
+        let all = StogramProxy.candidates
+        var servers = Array(StogramProxy.publicServers.prefix(6))
+        for server in StogramProxy.servers where !servers.contains(server) {
+            servers.append(server)
+        }
+        if servers.isEmpty {
+            servers = Array(all.prefix(8))
+        }
         guard !servers.isEmpty else {
             return
         }
+        self.lastMeasure = CFAbsoluteTimeGetCurrent()
         let statuses = ProxyServersStatuses(network: self.context.account.network, servers: .single(servers))
         self.statuses = statuses
         self.statusesDisposable.set((statuses.statuses()
