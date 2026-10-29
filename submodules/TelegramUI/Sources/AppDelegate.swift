@@ -999,7 +999,7 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
                 icons.append(PresentationAppIcon(name: "PremiumBlack", imageName: "PremiumBlack", isPremium: true))
                 
                 
-                // MARK: Stogram
+                // MARK: Stogram — our own icon colors, none of them locked
                 icons = [
                     PresentationAppIcon(name: "SGDefault", imageName: "SGDefault", isDefault: true),
                     PresentationAppIcon(name: "SGBlack", imageName: "SGBlack"),
@@ -1009,10 +1009,10 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
                     PresentationAppIcon(name: "SGNight", imageName: "SGNight"),
                     PresentationAppIcon(name: "SGSky", imageName: "SGSky"),
                     PresentationAppIcon(name: "SGTitanium", imageName: "SGTitanium"),
-                    PresentationAppIcon(isSGPro: true, name: "SGPro", imageName: "SGPro"),
-                    PresentationAppIcon(isSGPro: true, name: "SGDay", imageName: "SGDay"),
-                    PresentationAppIcon(isSGPro: true, name: "SGGold", imageName: "SGGold"),
-                    SGSimpleSettings.shared.duckyAppIconAvailable ? PresentationAppIcon(isSGPro: true, name: "SGDucky", imageName: "SGDucky") : PresentationAppIcon(name: "", imageName: ""), // Empty
+                    PresentationAppIcon(name: "SGPro", imageName: "SGPro"),
+                    PresentationAppIcon(name: "SGDay", imageName: "SGDay"),
+                    PresentationAppIcon(name: "SGGold", imageName: "SGGold"),
+                    PresentationAppIcon(name: "SGDucky", imageName: "SGDucky"),
                     PresentationAppIcon(name: "SGNeon", imageName: "SGNeon"),
                     PresentationAppIcon(name: "SGNeonBlue", imageName: "SGNeonBlue"),
                     PresentationAppIcon(name: "SGGlass", imageName: "SGGlass"),
