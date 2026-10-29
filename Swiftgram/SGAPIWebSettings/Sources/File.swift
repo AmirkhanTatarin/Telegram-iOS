@@ -10,6 +10,10 @@ import SGSimpleSettings
 import TelegramCore
 
 public func updateSGWebSettingsInteractivelly(context: AccountContext) {
+    // Stogram: no requests to Swiftgram's bot and servers (they used to receive our Telegram login data).
+    if ({ return true }()) {
+        return
+    }
     let _ = getSGApiToken(context: context).startStandalone(next: { token in
         let _ = getSGSettings(token: token).startStandalone(next: { webSettings in
             SGLogger.shared.log("SGAPI", "New SGWebSettings for id \(context.account.peerId.id._internalGetInt64Value()): \(webSettings) ")
@@ -37,6 +41,10 @@ public func updateSGWebSettingsInteractivelly(context: AccountContext) {
 
 
 public func postSGWebSettingsInteractivelly(context: AccountContext, data: [String: Any]) {
+    // Stogram: no requests to Swiftgram's bot and servers (they used to receive our Telegram login data).
+    if ({ return true }()) {
+        return
+    }
     let _ = getSGApiToken(context: context).startStandalone(next: { token in
         let _ = postSGSettings(token: token, data: data).startStandalone(error: { e in
             if case let .generic(errorMessage) = e, let errorMessage = errorMessage {
